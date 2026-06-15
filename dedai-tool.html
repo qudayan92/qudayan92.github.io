@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI去痕迹 · 三轮降重协议</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #2a3450;
+    --fg: #e2e8f0;
+    --muted: #6b7a9a;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00b894;
+    --orange: #fdcb6e;
+    --red: #e17055;
+    --blue: #74b9ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+  .header {
+    background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+    padding: 2rem 2rem 1.5rem;
+    text-align: center;
+  }
+  .header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+  .header p { color: rgba(255,255,255,0.8); font-size: 0.95rem; }
+  .container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+
+  /* API Key 设置 */
+  .api-bar {
+    display: flex; gap: 0.5rem; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1.5rem;
+  }
+  .api-bar label { white-space: nowrap; font-size: 0.85rem; color: var(--muted); }
+  .api-bar input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--fg); border-radius: 6px; padding: 0.45rem 0.75rem; font-size: 0.9rem;
+  }
+  .api-bar input:focus { outline: none; border-color: var(--accent); }
+  .api-bar .badge {
+    font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 20px;
+    background: var(--green); color: #fff; white-space: nowrap;
+  }
+  .api-bar .badge.none { background: var(--red); }
+
+  /* 输入区 */
+  .section-label { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+  textarea {
+    width: 100%; min-height: 180px; resize: vertical;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--fg); border-radius: 10px; padding: 1rem;
+    font-size: 0.95rem; line-height: 1.8; font-family: inherit;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  /* 模式选择 */
+  .modes {
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
+    margin: 1rem 0;
+  }
+  .mode-btn {
+    flex: 1; min-width: 140px;
+    padding: 0.6rem 0.8rem; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--fg); cursor: pointer; font-size: 0.85rem;
+    text-align: center; transition: all 0.2s;
+  }
+  .mode-btn:hover { border-color: var(--accent); background: var(--surface2); }
+  .mode-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .mode-btn .icon { font-size: 1.1rem; display: block; margin-bottom: 0.2rem; }
+
+  /* 执行按钮 */
+  .run-btn {
+    width: 100%; padding: 0.85rem; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    border: none; color: #fff; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: all 0.3s; letter-spacing: 0.5px;
+  }
+  .run-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(108,92,231,0.4); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* 进度 */
+  .progress { margin: 1rem 0; display: none; }
+  .progress.show { display: block; }
+  .progress-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--green));
+    transition: width 0.5s; width: 0%;
+  }
+  .progress-text { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; text-align: center; }
+
+  /* 结果区 */
+  .result-area { margin-top: 1.5rem; display: none; }
+  .result-area.show { display: block; }
+  .result-tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem;
+  }
+  .result-tab {
+    padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem;
+    color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .result-tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+  .result-content {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem; min-height: 200px;
+    font-size: 0.95rem; line-height: 1.8; white-space: pre-wrap; word-break: break-all;
+  }
+  .result-content .diff-add { background: rgba(0,184,148,0.15); color: var(--green); }
+  .result-content .diff-del { background: rgba(225,112,85,0.15); color: var(--red); text-decoration: line-through; }
+
+  /* 对比模式 */
+  .compare-wrap { display: none; gap: 1rem; }
+  .compare-wrap.show { display: grid; grid-template-columns: 1fr 1fr; }
+  .compare-col {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .compare-col h4 {
+    padding: 0.5rem 0.75rem; font-size: 0.8rem; color: var(--muted);
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+  .compare-col .text {
+    padding: 0.75rem; font-size: 0.88rem; line-height: 1.8;
+    max-height: 400px; overflow-y: auto; white-space: pre-wrap;
+  }
+
+  /* 指标卡片 */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin: 1rem 0; }
+  .metric {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem; text-align: center;
+  }
+  .metric .val { font-size: 1.3rem; font-weight: 700; }
+  .metric .label { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
+
+  /* 工具栏 */
+  .toolbar { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  .tool-btn {
+    padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--fg); cursor: pointer; transition: all 0.2s;
+  }
+  .tool-btn:hover { border-color: var(--accent); }
+
+  /* API接口说明 */
+  .api-doc {
+    margin-top: 2rem; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.25rem;
+  }
+  .api-doc h3 { font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--accent2); }
+  .api-doc pre {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.75rem; font-size: 0.82rem;
+    overflow-x: auto; color: var(--blue); line-height: 1.6;
+  }
+
+  @media (max-width: 640px) {
+    .compare-wrap.show { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .modes { flex-direction: column; }
+    .mode-btn { min-width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🪄 AI去痕迹 · 三轮降重协议</h1>
+  <p>基于朱雀检测算法逆向工程 · 困惑度↑ 突发性↑ 语义结构打散</p>
+</div>
+
+<div class="container">
+
+  <!-- API Key -->
+  <div class="api-bar">
+    <label>DeepSeek API Key:</label>
+    <input id="api-key" type="password" placeholder="sk-..." />
+    <span id="api-badge" class="badge none">未配置</span>
+  </div>
+
+  <!-- 输入 -->
+  <div class="section-label">📝 输入需要降重的文本</div>
+  <textarea id="input-text" placeholder="粘贴你的AI生成文本..."></textarea>
+
+  <!-- 模式选择 -->
+  <div class="modes">
+    <div class="mode-btn active" data-mode="ultimate" onclick="selectMode(this)">
+      <span class="icon">💥</span>终极降重
+    </div>
+    <div class="mode-btn" data-mode="three-round" onclick="selectMode(this)">
+      <span class="icon">🧠</span>三轮协议
+    </div>
+    <div class="mode-btn" data-mode="translate" onclick="selectMode(this)">
+      <span class="icon">🔄</span>翻译链
+    </div>
+    <div class="mode-btn" data-mode="local" onclick="selectMode(this)">
+      <span class="icon">⚡</span>本地快速
+    </div>
+    <div class="mode-btn" data-mode="polish" onclick="selectMode(this)">
+      <span class="icon">✨</span>人工润色
+    </div>
+  </div>
+
+  <!-- 执行按钮 -->
+  <button id="run-btn" class="run-btn" onclick="runDedai()">🪄 开始降重</button>
+
+  <!-- 进度 -->
+  <div id="progress" class="progress">
+    <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+    <div id="progress-text" class="progress-text"></div>
+  </div>
+
+  <!-- 指标 -->
+  <div id="metrics" class="metrics" style="display:none">
+    <div class="metric"><div class="val" id="m-before">--</div><div class="label">降重前(字)</div></div>
+    <div class="metric"><div class="val" id="m-after">--</div><div class="label">降重后(字)</div></div>
+    <div class="metric"><div class="val" id="m-rounds">--</div><div class="label">执行轮数</div></div>
+    <div class="metric"><div class="val" id="m-time">--</div><div class="label">耗时(秒)</div></div>
+  </div>
+
+  <!-- 结果 -->
+  <div id="result-area" class="result-area">
+    <div class="result-tabs">
+      <div class="result-tab active" onclick="switchTab('text', this)">📄 降重结果</div>
+      <div class="result-tab" onclick="switchTab('compare', this)">📊 对比</div>
+      <div class="result-tab" onclick="switchTab('rounds', this)">📋 各轮过程</div>
+    </div>
+    <div id="tab-text" class="result-content"></div>
+    <div id="tab-compare" class="compare-wrap">
+      <div class="compare-col"><h4>降重前</h4><div id="cmp-before" class="text"></div></div>
+      <div class="compare-col"><h4>降重后</h4><div id="cmp-after" class="text"></div></div>
+    </div>
+    <div id="tab-rounds" class="result-content" style="display:none"></div>
+    <div class="toolbar">
+      <button class="tool-btn" onclick="copyResult()">📋 复制结果</button>
+      <button class="tool-btn" onclick="copyToMain()">📖 复制到作家工坊</button>
+      <button class="tool-btn" onclick="clearAll()">🗑️ 清空</button>
+    </div>
+  </div>
+
+  <!-- API文档 -->
+  <div class="api-doc">
+    <h3>🔌 外部调用接口</h3>
+    <pre>
+// 在其他网页中调用三轮降重协议
+const result = await window.DedaiAPI.run({
+  text: '你的AI生成文本',
+  mode: 'three-round',  // ultimate|three-round|translate|local|polish
+  apiKey: 'sk-xxx'      // 可选,已配置则省略
+});
+
+// 仅检测AI特征
+const detection = window.DedaiAPI.detect('待检测文本');
+
+// 获取API状态
+const status = window.DedaiAPI.status();  // {hasKey: bool}
+    </pre>
+  </div>
+</div>
+
+<script>
+// ===== 全局状态 =====
+let currentMode = 'ultimate';
+let lastResult = null;
+
+// ===== API Key 管理 =====
+const API_KEY = 'novel-quest.api-key';
+function getApiKey() { return localStorage.getItem(API_KEY) || ''; }
+function setApiKey(k) { localStorage.setItem(API_KEY, k); }
+function hasApiKey() { return !!getApiKey(); }
+
+// 初始化
+(function init() {
+  const key = getApiKey();
+  const input = document.getElementById('api-key');
+  const badge = document.getElementById('api-badge');
+  if (key) {
+    input.value = key;
+    badge.textContent = '✓ 已配置';
+    badge.className = 'badge';
+  }
+  input.addEventListener('input', () => {
+    setApiKey(input.value.trim());
+    if (input.value.trim()) {
+      badge.textContent = '✓ 已配置';
+      badge.className = 'badge';
+    } else {
+      badge.textContent = '未配置';
+      badge.className = 'badge none';
+    }
+  });
+})();
+
+// ===== DeepSeek API 调用 =====
+async function callAI(prompt, mode = 'rewrite') {
+  const key = getApiKey();
+  if (!key) throw new Error('请先配置 API Key');
+
+  let temperature = 1.5, top_p = 0.95;
+  if (mode === 'polish') { temperature = 0.3; top_p = 0.9; }
+
+  let sysPrompt = '你是凌晨三点还在赶稿的作者,刚跟编辑吵完架,心情很操蛋。改写以下文字。\n\n' +
+    '【核心要求:让文本读起来像一个人在发牢骚而不是AI在生成】\n\n' +
+    '1. 句子长度极端不均:至少3个句子只有1-3个字,至少2个句子超过50字,连续三句长度差>20字\n' +
+    '2. 加入至少5种人味元素:内心吐槽/自相矛盾/跑题/口头禅重复/具体细节/身体感受/对读者喊话\n' +
+    '3. 禁止使用:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见/值得一提/不难发现/显而易见/事实上/实际上/从某种角度\n' +
+    '4. 保留原文情节,只改写法。直接输出改写内容,不要加任何说明。';
+
+  if (mode === 'polish') {
+    sysPrompt = '你是一位资深中文编辑,只做极小幅度的润色。\n\n' +
+      '规则:\n1. 保留95%以上的原文内容\n2. 只修正明显的语病/错别字/不通顺\n3. 不改变原文风格和用词习惯\n4. 不要添加任何新内容\n5. 不要使用AI常用词汇\n直接输出润色后的文本:';
+  }
+
+  const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: sysPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature, top_p,
+      max_tokens: 4096
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error('API请求失败: ' + resp.status + ' ' + err);
+  }
+
+  const data = await resp.json();
+  return (data.choices?.[0]?.message?.content || '').trim();
+}
+
+// ===== 本地后处理 =====
+function deduplicateText(text) {
+  if (!text) return text;
+  const lines = text.split(/\n/);
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (i > 0 && lines[i].trim() && lines[i].trim() === lines[i - 1].trim()) continue;
+    out.push(lines[i]);
+  }
+  return out.join('\n');
+}
+
+function postProcessText(text) {
+  let out = text;
+  const AI_TICKS = [
+    '值得注意的是', '不得不说', '令人惊讶的是', '综上所述', '在当今社会',
+    '众所周知', '与此同时', '毋庸置疑', '值得一提', '不难发现',
+    '显而易见', '事实上', '实际上', '从某种角度', '由此可见',
+    '归根结底', '总的来说', '需要指出的是', '毫无疑问', '显而易见',
+    '一定程度上', '具有重要意义', '发挥着重要作用', '扮演着重要角色',
+    '提供了新的视角', '引发了广泛关注', '值得深入探讨', '不可忽视',
+    '面临诸多挑战', '呈现出多元化趋势', '日益凸显', '持续发展',
+    '不断推进', '有效提升', '深入分析', '全面考虑',
+  ];
+  for (const tick of AI_TICKS) {
+    out = out.replace(new RegExp(tick, 'g'), '');
+  }
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function splitLongSentences(text) {
+  return text.replace(/([，,。！？；])/g, (m, p, offset, str) => {
+    if (offset > 0 && offset < str.length - 1) {
+      return Math.random() < 0.15 ? p + '\n' : p;
+    }
+    return p;
+  });
+}
+
+function randomScramble(text) {
+  if (!text || text.length < 50) return text;
+  let out = text;
+  const SWAPS = [
+    [/说真的/g, () => ['说实在的', '讲真', '说句掏心窝的', '咋说呢'][Math.floor(Math.random()*4)]],
+    [/突然/g, () => ['猛地', '一下子', '冷不丁', '冷不防'][Math.floor(Math.random()*4)]],
+    [/觉得/g, () => ['感觉', '寻思', '琢磨', '想着'][Math.floor(Math.random()*4)]],
+    [/有点/g, () => ['有些', '多少', '略微', '稍微'][Math.floor(Math.random()*4)]],
+    [/非常/g, () => ['特', '贼', '巨', '老'][Math.floor(Math.random()*4)]],
+    [/但是/g, () => ['不过', '可是', '但', '然而'][Math.floor(Math.random()*4)]],
+    [/因为/g, () => ['由于', '原因是', '毕竟', '因为嘛'][Math.floor(Math.random()*4)]],
+    [/所以/g, () => ['因此', '于是', '搞得', '弄到最后'][Math.floor(Math.random()*4)]],
+    [/而且/g, () => ['还', '再加上', '关键还', '更离谱的是'][Math.floor(Math.random()*4)]],
+    [/虽然/g, () => ['虽说', '话是这么说', '尽管', '固然'][Math.floor(Math.random()*4)]],
+    [/如果/g, () => ['要是', '假如', '倘若', '万一'][Math.floor(Math.random()*4)]],
+    [/可以/g, () => ['能', '行', '没问题', '可以的'][Math.floor(Math.random()*4)]],
+    [/这样/g, () => ['这么', '如此', '这么着', '这样儿'][Math.floor(Math.random()*4)]],
+    [/那个/g, () => ['那个啥', '那个', '这玩意儿', '那什么'][Math.floor(Math.random()*4)]],
+    [/就是说/g, () => ['也就是说', '换句话说', '说白了', '等于说'][Math.floor(Math.random()*4)]],
+  ];
+  for (const [re, fn] of SWAPS) {
+    out = out.replace(re, fn);
+  }
+  // 概率化语气词注入
+  const fillers = ['哈', '嘛', '呗', '啊', '呢', '吧', '了'];
+  const sentences = out.split(/([。！？])/);
+  const out2 = [];
+  for (let i = 0; i < sentences.length; i++) {
+    let s = sentences[i];
+    if (Math.random() < 0.12 && s.length > 5 && /[。！？]/.test(s)) {
+      const f = fillers[Math.floor(Math.random() * fillers.length)];
+      s = s.slice(0, -1) + f + s.slice(-1);
+    }
+    out2.push(s);
+  }
+  return out2.join('');
+}
+
+function humanChaos(text) {
+  if (!text || text.length < 50) return text;
+  let out = text;
+  // 思维跳跃
+  const jumps = ['——等等,这么说好像也不对。','——算了,接着说。','——怎么说呢,就是那种感觉。',
+    '——你懂的吧?','——操,又跑题了。','——哎不对,我刚说到哪了?','——突然想到一个事。','——算了不说了。'];
+  const paras = out.split(/\n\n+/);
+  if (paras.length >= 3) {
+    const jn = Math.floor(Math.random() * 3) + 1;
+    for (let i = 0; i < jn; i++) {
+      const idx = Math.floor(Math.random() * (paras.length - 2)) + 1;
+      if (paras[idx].length > 30) {
+        paras.splice(idx + 1, 0, jumps[Math.floor(Math.random() * jumps.length)]);
+      }
+    }
+    out = paras.join('\n\n');
+  }
+  // 自相矛盾
+  const contradictions = ['其实也不全对,我后来想想。','但话说回来,也不全是这样。','算了,当我没说。','也不好说。','看情况吧。'];
+  const sentences = out.split(/([。!?！？])/);
+  if (sentences.length >= 8 && Math.random() < 0.4) {
+    const idx = Math.floor(Math.random() * (sentences.length - 4)) + 2;
+    if (idx < sentences.length && /[。!?！？]/.test(sentences[idx])) {
+      sentences.splice(idx + 1, 0, contradictions[Math.floor(Math.random() * contradictions.length)]);
+    }
+    out = sentences.join('');
+  }
+  // 具体细节
+  const details = ['那天下午','上周二','凌晨两点多','三月份的时候','在便利店门口','在地铁上','出租屋里','花了三十多块','等了快半小时'];
+  if (Math.random() < 0.35 && out.length > 200) {
+    const detail = details[Math.floor(Math.random() * details.length)];
+    const pos = Math.floor(Math.random() * out.length * 0.6) + out.length * 0.2;
+    const idx = out.indexOf('。', pos);
+    if (idx > 0 && idx < out.length - 5) out = out.slice(0, idx + 1) + detail + out.slice(idx + 1);
+  }
+  return out;
+}
+
+// ===== AI检测(简化版) =====
+function detectAiFlavor(text) {
+  if (!text) return { score: 0, signals: [] };
+  let score = 0;
+  const signals = [];
+  const len = text.length;
+  // 1. AI套话密度
+  const aiWords = ['值得注意的是','不得不说','令人惊讶的是','综上所述','在当今社会','众所周知',
+    '与此同时','毋庸置疑','仿佛','宛如','犹如','似乎','总的来说','归根结底','由此可见',
+    '值得一提','不难发现','显而易见','事实上','实际上'];
+  let aiCount = 0;
+  for (const w of aiWords) { const m = text.match(new RegExp(w, 'g')); if (m) aiCount += m.length; }
+  const aiDensity = len > 0 ? aiCount / len * 1000 : 0;
+  if (aiDensity > 5) { score += 25; signals.push('AI套话密度高(' + aiCount + '处)'); }
+  else if (aiDensity > 2) { score += 10; }
+  // 2. 句长变异系数
+  const sents = text.split(/[。！？]/).filter(s => s.trim().length > 0);
+  if (sents.length > 3) {
+    const lens = sents.map(s => s.trim().length);
+    const avg = lens.reduce((a, b) => a + b, 0) / lens.length;
+    const variance = lens.reduce((a, b) => a + (b - avg) ** 2, 0) / lens.length;
+    const cv = avg > 0 ? Math.sqrt(variance) / avg : 0;
+    if (cv < 0.3) { score += 20; signals.push('句长太均匀(CV=' + cv.toFixed(2) + ')'); }
+    else if (cv < 0.5) { score += 8; }
+  }
+  // 3. 段首重复
+  const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 10);
+  if (paragraphs.length > 3) {
+    const starts = paragraphs.slice(0, 10).map(p => p.trim().charAt(0));
+    const unique = new Set(starts);
+    if (unique.size < starts.length * 0.5) { score += 15; signals.push('段首重复率高'); }
+  }
+  // 4. 比喻词
+  const metaphors = (text.match(/仿佛|宛如|犹如|恍若|好似/g) || []).length;
+  if (metaphors > 3) { score += 10; signals.push('比喻词过多(' + metaphors + '处)'); }
+  // 5. 碎片句检测
+  const fragments = sents.filter(s => s.trim().length >= 2 && s.trim().length <= 8).length;
+  if (fragments < 2 && sents.length > 5) { score += 10; signals.push('缺少碎片短句'); }
+  return { score: Math.min(100, score), signals };
+}
+
+// ===== UI交互 =====
+function selectMode(el) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentMode = el.dataset.mode;
+}
+
+let isRunning = false;
+async function runDedai() {
+  if (isRunning) return;
+  const text = document.getElementById('input-text').value.trim();
+  if (!text) { alert('请先输入文本'); return; }
+  if (!hasApiKey() && currentMode !== 'local') {
+    alert('请先配置 DeepSeek API Key'); return;
+  }
+
+  isRunning = true;
+  const btn = document.getElementById('run-btn');
+  const prog = document.getElementById('progress');
+  const fill = document.getElementById('progress-fill');
+  const ptext = document.getElementById('progress-text');
+  btn.disabled = true; btn.textContent = '⏳ 执行中...';
+  prog.classList.add('show');
+
+  const startTime = Date.now();
+  const inputLen = text.length;
+  let result = text;
+  let rounds = 0;
+  let allRounds = [];
+
+  try {
+    if (currentMode === 'local') {
+      // 本地快速
+      updateProgress(fill, ptext, 50, '执行本地降重...');
+      result = deduplicateText(text);
+      result = postProcessText(result);
+      result = splitLongSentences(result);
+      result = randomScramble(result);
+      result = humanChaos(result);
+      rounds = 5;
+      allRounds.push({ name: '⚡ 本地快速清洗', text: result });
+      updateProgress(fill, ptext, 100, '完成!');
+
+    } else if (currentMode === 'polish') {
+      // 人工润色
+      updateProgress(fill, ptext, 30, '执行人工润色(极低温度微调)...');
+      const prompt = '请对以下文本做极小幅度润色,只修正明显的语病和错别字,保留95%以上的原文:\n\n' + text;
+      result = await callAI(prompt, 'polish');
+      result = deduplicateText(result);
+      rounds = 1;
+      allRounds.push({ name: '✨ 人工润色', text: result });
+      updateProgress(fill, ptext, 100, '完成!');
+
+    } else if (currentMode === 'three-round') {
+      // 三轮协议
+      // 第1轮
+      updateProgress(fill, ptext, 15, '第1轮: 极端重写——让困惑度飙升...');
+      const p1 = '你是凌晨三点还在赶稿的作者,刚跟编辑吵完架。改写以下文字。\n\n' +
+        '【核心要求:让文本读起来像一个人在发牢骚而不是AI在生成】\n\n' +
+        '1. 句子长度极端不均:至少3个句子只有1-3个字,至少2个句子超过50字,连续三句长度差>20字\n' +
+        '2. 加入至少5种人味元素:内心吐槽/自相矛盾/跑题/口头禅重复/具体细节/身体感受/对读者喊话\n' +
+        '3. 禁止使用:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见\n' +
+        '4. 保留原文情节,只改写法。直接输出改写内容:\n\n' + text;
+      const r1 = await callAI(p1, 'rewrite');
+      allRounds.push({ name: '🔄 第1轮: 极端重写', text: r1 });
+      rounds++;
+
+      // 第2轮
+      updateProgress(fill, ptext, 45, '第2轮: 注入更深层人味...');
+      const p2 = '你是另一个作者,看了上面这段文字觉得还不够"人",再改一遍:\n\n' +
+        '重点:打乱段落逻辑/加反问句/加省略号/加破折号/故意啰嗦/加具体品牌地名/禁止AI套话\n直接输出:\n\n' + r1;
+      const r2 = await callAI(p2, 'rewrite');
+      allRounds.push({ name: '🔄 第2轮: 人味注入', text: r2 });
+      rounds++;
+
+      // 第3轮
+      updateProgress(fill, ptext, 75, '第3轮: 朱雀检测自检审计...');
+      const p3 = '你是朱雀AI检测系统。分析以下文本,找出所有"像AI写的"特征并修改:\n\n' +
+        '朱雀检测维度:困惑度/突发性/语义结构/段首重复/比喻词/情感均匀/对话/碎片句\n直接输出修改后的文本:\n\n' + r2;
+      const r3 = await callAI(p3, 'rewrite');
+      allRounds.push({ name: '🔄 第3轮: 自检审计', text: r3 });
+      rounds++;
+
+      // 后处理
+      updateProgress(fill, ptext, 90, '后处理...');
+      result = deduplicateText(r3);
+      result = postProcessText(result);
+      result = splitLongSentences(result);
+      result = randomScramble(result);
+      result = humanChaos(result);
+      allRounds.push({ name: '🎯 最终后处理', text: result });
+      updateProgress(fill, ptext, 100, '完成!');
+
+    } else if (currentMode === 'translate') {
+      // 翻译链:中→日→中
+      updateProgress(fill, ptext, 20, '第1跳: 中文→日文...');
+      const r1 = await callAI('将以下中文翻译成自然的日语,保留所有细节和情感:\n\n' + text, 'rewrite');
+      allRounds.push({ name: '🔄 中→日', text: r1 });
+      rounds++;
+
+      updateProgress(fill, ptext, 50, '第2跳: 日文→中文...');
+      const r2 = await callAI('将以下日语翻译成自然的中文,要像一个真人在写而不是翻译体:\n\n' + r1, 'rewrite');
+      allRounds.push({ name: '🔄 日→中', text: r2 });
+      rounds++;
+
+      // 后处理
+      updateProgress(fill, ptext, 80, '后处理...');
+      result = deduplicateText(r2);
+      result = postProcessText(result);
+      result = humanChaos(result);
+      allRounds.push({ name: '🎯 后处理', text: result });
+      updateProgress(fill, ptext, 100, '完成!');
+
+    } else {
+      // 终极降重: 翻译链+三轮协议+人味注入
+      updateProgress(fill, ptext, 5, '💥 终极模式: 翻译链→三轮协议→人味注入');
+
+      // 翻译链
+      updateProgress(fill, ptext, 10, '翻译链: 中→日...');
+      const tr1 = await callAI('将以下中文翻译成自然的日语:\n\n' + text, 'rewrite');
+      allRounds.push({ name: '🔄 翻译链: 中→日', text: tr1 }); rounds++;
+
+      updateProgress(fill, ptext, 18, '翻译链: 日→中...');
+      const tr2 = await callAI('将以下日语翻译成自然的中文,要像真人在写:\n\n' + tr1, 'rewrite');
+      allRounds.push({ name: '🔄 翻译链: 日→中', text: tr2 }); rounds++;
+
+      // 三轮协议
+      updateProgress(fill, ptext, 30, '第1轮: 极端重写...');
+      const p1 = '你是凌晨三点还在赶稿的作者。改写以下文字,让句子长度极端不均(至少3句1-3字),加入内心吐槽/自相矛盾/跑题/具体细节/身体感受/对读者喊话。禁止AI套话。直接输出:\n\n' + tr2;
+      const r1 = await callAI(p1, 'rewrite');
+      allRounds.push({ name: '🔄 三轮第1轮: 极端重写', text: r1 }); rounds++;
+
+      updateProgress(fill, ptext, 48, '第2轮: 人味注入...');
+      const p2 = '打乱段落逻辑/加反问句/加省略号/加破折号/故意啰嗦/加具体品牌地名/禁止AI套话。直接输出:\n\n' + r1;
+      const r2 = await callAI(p2, 'rewrite');
+      allRounds.push({ name: '🔄 三轮第2轮: 人味注入', text: r2 }); rounds++;
+
+      updateProgress(fill, ptext, 65, '第3轮: 朱雀自检...');
+      const p3 = '你是朱雀AI检测系统。检查困惑度/突发性/语义结构/段首重复/比喻词/对话/碎片句,修改所有AI特征。直接输出:\n\n' + r2;
+      const r3 = await callAI(p3, 'rewrite');
+      allRounds.push({ name: '🔄 三轮第3轮: 自检', text: r3 }); rounds++;
+
+      // 人味注入
+      updateProgress(fill, ptext, 80, '注入人味...');
+      const r4 = await callAI('最后一步:加入更多真人口语特征,像凌晨三点赶稿的状态。直接输出:\n\n' + r3, 'rewrite');
+      allRounds.push({ name: '🗣️ 人味注入', text: r4 }); rounds++;
+
+      // 后处理
+      updateProgress(fill, ptext, 92, '后处理...');
+      result = deduplicateText(r4);
+      result = postProcessText(result);
+      result = splitLongSentences(result);
+      result = randomScramble(result);
+      result = humanChaos(result);
+      allRounds.push({ name: '🎯 最终后处理', text: result });
+      updateProgress(fill, ptext, 100, '完成!');
+    }
+
+    // 显示结果
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    lastResult = { input: text, output: result, rounds: allRounds, mode: currentMode };
+
+    document.getElementById('m-before').textContent = inputLen;
+    document.getElementById('m-after').textContent = result.length;
+    document.getElementById('m-rounds').textContent = rounds;
+    document.getElementById('m-time').textContent = elapsed;
+    document.getElementById('metrics').style.display = 'grid';
+
+    document.getElementById('tab-text').textContent = result;
+    document.getElementById('cmp-before').textContent = text;
+    document.getElementById('cmp-after').textContent = result;
+
+    // 各轮过程
+    const roundsHtml = allRounds.map((r, i) =>
+      '━━━ ' + r.name + ' ━━━\n\n' + r.text
+    ).join('\n\n');
+    document.getElementById('tab-rounds').textContent = roundsHtml;
+
+    document.getElementById('result-area').classList.add('show');
+  } catch (err) {
+    alert('错误: ' + err.message);
+  } finally {
+    isRunning = false;
+    btn.disabled = false; btn.textContent = '🪄 开始降重';
+  }
+}
+
+function updateProgress(fill, text, pct, msg) {
+  fill.style.width = pct + '%';
+  text.textContent = msg;
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.result-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-text').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('tab-compare').className = 'compare-wrap' + (tab === 'compare' ? ' show' : '');
+  document.getElementById('tab-rounds').style.display = tab === 'rounds' ? 'block' : 'none';
+}
+
+function copyResult() {
+  if (!lastResult) return;
+  navigator.clipboard.writeText(lastResult.output).then(() => alert('已复制到剪贴板!'));
+}
+
+function copyToMain() {
+  if (!lastResult) return;
+  // 存入localStorage供作家工坊读取
+  localStorage.setItem('novel-quest.dedai-result', lastResult.output);
+  alert('已保存! 打开作家工坊编辑器即可粘贴使用');
+}
+
+function clearAll() {
+  document.getElementById('input-text').value = '';
+  document.getElementById('result-area').classList.remove('show');
+  document.getElementById('metrics').style.display = 'none';
+  lastResult = null;
+}
+
+// ===== 外部调用API =====
+window.DedaiAPI = {
+  async run({ text, mode = 'three-round', apiKey } = {}) {
+    if (apiKey) { setApiKey(apiKey); }
+    if (!text) throw new Error('text is required');
+    if (!hasApiKey()) throw new Error('API Key not configured');
+
+    // 临时切换模式
+    const saved = currentMode;
+    currentMode = mode;
+    document.getElementById('input-text').value = text;
+    await runDedai();
+    currentMode = saved;
+    return lastResult?.output || text;
+  },
+  detect(text) {
+    return detectAiFlavor(text);
+  },
+  status() {
+    return { hasKey: hasApiKey() };
+  }
+};
+</script>
+</body>
+</html>
