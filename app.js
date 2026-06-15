@@ -359,27 +359,113 @@
     render();
   }
 
+  // 关卡分组定义
+  const LEVEL_GROUPS = [
+    { id: 'setup', name: '设定', from: 1, to: 3 },
+    { id: 'vol1', name: '第一卷 · 第 1-10 章', from: 4, to: 13 },
+    { id: 'vol2', name: '第二卷 · 第 11-20 章', from: 14, to: 23 },
+    { id: 'vol3', name: '第三卷 · 第 21-30 章', from: 24, to: 33 },
+  ];
+
+  // 获取 / 持久化折叠状态
+  const GROUP_STATE_KEY = 'novel-quest.group-state';
+  function getGroupState() {
+    try { return JSON.parse(localStorage.getItem(GROUP_STATE_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function setGroupState(s) {
+    try { localStorage.setItem(GROUP_STATE_KEY, JSON.stringify(s)); } catch (e) {}
+  }
+  function isGroupCollapsed(groupId) {
+    const s = getGroupState();
+    return !!s[groupId];
+  }
+  function toggleGroup(groupId) {
+    const s = getGroupState();
+    s[groupId] = !s[groupId];
+    setGroupState(s);
+    renderSidebar();
+  }
+  function expandAllGroups() {
+    setGroupState({});
+    renderSidebar();
+  }
+  function collapseAllGroups() {
+    const s = {};
+    LEVEL_GROUPS.forEach(g => { s[g.id] = true; });
+    setGroupState(s);
+    renderSidebar();
+  }
+
+  function isLevelDone(w, lvl) {
+    const st = w.levels[lvl.id];
+    if (!st) return false;
+    return st.status === 'done';
+  }
+
   function renderSidebar() {
     const list = document.getElementById('level-list');
     list.innerHTML = '';
     const w = work();
-    LEVELS.forEach(lvl => {
-      const st = w.levels[lvl.id];
-      const item = document.createElement('div');
-      item.className = 'level' +
-        (lvl.id === w.currentLevel ? ' active' : '') +
-        (st.status === 'locked' ? ' locked' : '') +
-        (st.status === 'done' ? ' done' : '') +
-        (lvl.type === 'boss' ? ' boss' : '');
-      item.innerHTML =
-        '<div class="badge">' + (st.status === 'done' ? '✓' : lvl.id) + '</div>' +
-        '<div class="meta">' +
-          '<div class="name">' + escapeHtml(lvl.name) + '</div>' +
-          '<div class="sub">' + escapeHtml(lvl.sub) + '</div>' +
-        '</div>';
-      item.addEventListener('click', () => { if (st.status !== 'locked') switchLevel(lvl.id); });
-      list.appendChild(item);
+
+    // 顶部工具栏:全部展开 / 全部折叠
+    const toolbar = document.createElement('div');
+    toolbar.className = 'level-list-toolbar';
+    toolbar.innerHTML =
+      '<button id="btn-expand-all" title="展开所有分组">▾ 全部展开</button>' +
+      '<button id="btn-collapse-all" title="折叠所有分组">▸ 全部折叠</button>';
+    list.appendChild(toolbar);
+
+    LEVEL_GROUPS.forEach(group => {
+      const groupEl = document.createElement('div');
+      const collapsed = isGroupCollapsed(group.id);
+      groupEl.className = 'level-group' + (collapsed ? ' collapsed' : '');
+
+      // 计算本组统计
+      const groupLevels = LEVELS.filter(l => l.id >= group.from && l.id <= group.to);
+      const total = groupLevels.length;
+      const done = groupLevels.filter(l => isLevelDone(w, l)).length;
+      const hasCurrent = groupLevels.some(l => l.id === w.currentLevel);
+
+      // 分组头
+      const head = document.createElement('div');
+      head.className = 'level-group-head';
+      const countClass = done === total ? 'all-done' : (hasCurrent ? 'has-current' : '');
+      head.innerHTML =
+        '<span class="caret">▾</span>' +
+        '<span class="label">' + group.name + '</span>' +
+        '<span class="count ' + countClass + '">' + done + '/' + total + '</span>';
+      head.addEventListener('click', () => toggleGroup(group.id));
+      groupEl.appendChild(head);
+
+      // 分组体
+      const body = document.createElement('div');
+      body.className = 'level-group-body';
+      groupLevels.forEach(lvl => {
+        const st = w.levels[lvl.id];
+        const item = document.createElement('div');
+        item.className = 'level' +
+          (lvl.id === w.currentLevel ? ' active' : '') +
+          (st.status === 'locked' ? ' locked' : '') +
+          (st.status === 'done' ? ' done' : '') +
+          (lvl.type === 'boss' ? ' boss' : '');
+        item.innerHTML =
+          '<div class="badge">' + (st.status === 'done' ? '✓' : lvl.id) + '</div>' +
+          '<div class="meta">' +
+            '<div class="name">' + escapeHtml(lvl.name) + '</div>' +
+            '<div class="sub">' + escapeHtml(lvl.sub) + '</div>' +
+          '</div>';
+        item.addEventListener('click', () => { if (st.status !== 'locked') switchLevel(lvl.id); });
+        body.appendChild(item);
+      });
+      groupEl.appendChild(body);
+
+      list.appendChild(groupEl);
     });
+
+    // 工具栏按钮事件
+    document.getElementById('btn-expand-all').addEventListener('click', expandAllGroups);
+    document.getElementById('btn-collapse-all').addEventListener('click', collapseAllGroups);
 
     const footer = document.getElementById('level-footer');
     footer.innerHTML =
@@ -389,6 +475,12 @@
     document.getElementById('btn-delete-work').addEventListener('click', () => deleteWork(state.activeWorkId));
 
     document.getElementById('level-total').textContent = LEVELS.length;
+
+    // 自动滚动到当前关卡
+    requestAnimationFrame(() => {
+      const active = list.querySelector('.level.active');
+      if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }
 
   function renderHeader() {
