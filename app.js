@@ -108,6 +108,7 @@
               if (!w.levels[lvl.id]) w.levels[lvl.id] = { status: 'locked', content: '' };
             });
             if (!w.todoDone) w.todoDone = {};
+            if (!w.updatedAt) w.updatedAt = w.createdAt || new Date().toISOString();
           });
           return parsed;
         }
@@ -150,6 +151,8 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
+        const w = state.works[state.activeWorkId];
+        if (w) w.updatedAt = new Date().toISOString();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         setSaveIndicator('saved');
         updateStorage();
@@ -161,6 +164,8 @@
   function saveNow() {
     clearTimeout(saveTimer);
     try {
+      const w = state.works[state.activeWorkId];
+      if (w) w.updatedAt = new Date().toISOString();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       setSaveIndicator('saved');
       updateStorage();
@@ -726,6 +731,10 @@
 
   function gatherWorkText() {
     const w = work();
+    return gatherWorkTextOf(w);
+  }
+  function gatherWorkTextOf(w) {
+    if (!w) return '';
     const chunks = [];
     LEVELS.forEach(lvl => {
       const st = w.levels[lvl.id];
@@ -771,6 +780,10 @@
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+  function toastKind(msg, kind) {
+    const isError = kind === 'bad' || kind === 'warn' || kind === 'error' || kind === true;
+    toast(msg, isError);
   }
 
   // ===== Preview modal =====
@@ -1021,6 +1034,26 @@
         if (e.key === 'Escape') hideSearch();
       });
     }
+
+    // 作品集 / 成品展示
+    document.getElementById('btn-showcase').addEventListener('click', showShowcase);
+    document.getElementById('showcase-modal-close').addEventListener('click', hideShowcase);
+    document.getElementById('showcase-modal-ok').addEventListener('click', hideShowcase);
+    document.getElementById('showcase-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'showcase-modal-bg') hideShowcase();
+    });
+    document.getElementById('showcase-export-all').addEventListener('click', exportAllShowcase);
+    document.getElementById('showcase-filter').addEventListener('input', renderShowcase);
+    document.getElementById('showcase-sort').addEventListener('change', renderShowcase);
+
+    // 阅读模式
+    document.getElementById('reader-modal-close').addEventListener('click', hideReader);
+    document.getElementById('reader-modal-ok').addEventListener('click', hideReader);
+    document.getElementById('reader-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'reader-modal-bg') hideReader();
+    });
+    document.getElementById('reader-copy-all').addEventListener('click', readerCopyAll);
+    document.getElementById('reader-export').addEventListener('click', readerExport);
 
     // 作品切换
     document.getElementById('work-switcher').addEventListener('click', e => {
@@ -1352,15 +1385,16 @@
   function searchInWork(workId, keyword, isAll) {
     if (!keyword) return [];
     const results = [];
+    const MAX = 200;
     const re = new RegExp(escapeRegExp(keyword), 'gi');
     const workList = isAll ? Object.values(state.works) : [state.works[workId]];
-    workList.forEach(w => {
-      if (!w || !w.levels) return;
-      LEVELS.forEach(lvl => {
+    outer: for (const w of workList) {
+      if (!w || !w.levels) continue;
+      for (const lvl of LEVELS) {
         const st = w.levels[lvl.id];
-        if (!st || !st.content) return;
-        let m;
+        if (!st || !st.content) continue;
         re.lastIndex = 0;
+        let m;
         while ((m = re.exec(st.content)) !== null) {
           if (m.index === re.lastIndex) re.lastIndex++;
           results.push({
@@ -1372,12 +1406,10 @@
             match: m[0],
             snippet: buildSnippet(st.content, m.index, keyword),
           });
-          if (results.length >= 200) break;
+          if (results.length >= MAX) break outer;
         }
-        if (results.length >= 200) break;
-      });
-      if (results.length >= 200) break;
-    });
+      }
+    }
     return results;
   }
 
@@ -1482,7 +1514,386 @@
     const modal = document.getElementById('search-modal-bg');
     if (modal) modal.classList.remove('open');
   }
-  
+
+  // ===== 12.6 作品集 / 成品展示页 =====
+  const COVER_GRADIENTS = [
+    'linear-gradient(135deg, #6ea8ff 0%, #9b6eff 100%)',
+    'linear-gradient(135deg, #f5c451 0%, #ef4444 100%)',
+    'linear-gradient(135deg, #4ade80 0%, #06b6d4 100%)',
+    'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+    'linear-gradient(135deg, #f59e0b 0%, #10b981 100%)',
+    'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    'linear-gradient(135deg, #db2777 0%, #f97316 100%)',
+    'linear-gradient(135deg, #14b8a6 0%, #6366f1 100%)',
+  ];
+
+  function workStats(w) {
+    let totalWords = 0;
+    let chapterCount = 0;
+    let completedChapters = 0;
+    let completedLevels = 0;
+    let lastUpdate = 0;
+    LEVELS.forEach(lvl => {
+      const lv = w.levels[lvl.id];
+      if (!lv) return;
+      if (lv.content) {
+        totalWords += lv.content.length;
+        if (lvl.type === 'chapter' || lvl.type === 'boss') {
+          chapterCount += 1;
+          const isDone = lv.status === 'done' ||
+            (lvl.targets || []).every(t => t.test ? t.test(lv.content) : false);
+          if (isDone) completedChapters += 1;
+        }
+      }
+      if (lv.status === 'done') completedLevels += 1;
+    });
+    const totalLevels = LEVELS.length;
+    const progress = Math.round((completedLevels / totalLevels) * 100);
+    if (w.updatedAt) {
+      const t = new Date(w.updatedAt).getTime();
+      if (!isNaN(t) && t > lastUpdate) lastUpdate = t;
+    }
+    if (w.createdAt) {
+      const t = new Date(w.createdAt).getTime();
+      if (!isNaN(t) && t > lastUpdate) lastUpdate = t;
+    }
+    return {
+      totalWords, chapterCount, completedChapters,
+      completedLevels, totalLevels, progress, lastUpdate,
+    };
+  }
+
+  function getCoverGradient(w, idx) {
+    if (w.coverGradient) return w.coverGradient;
+    return COVER_GRADIENTS[idx % COVER_GRADIENTS.length];
+  }
+
+  function formatDateShort(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    const pad = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function getShowcaseFilter() {
+    return (document.getElementById('showcase-filter').value || '').trim().toLowerCase();
+  }
+
+  function getShowcaseSort() {
+    return document.getElementById('showcase-sort').value || 'updated';
+  }
+
+  function getSortedFilteredWorks() {
+    const filter = getShowcaseFilter();
+    const sort = getShowcaseSort();
+    const arr = Object.values(state.works).map((w, idx) => ({ w, idx, stats: workStats(w) }));
+    let filtered = filter
+      ? arr.filter(x => x.w.name.toLowerCase().includes(filter))
+      : arr;
+    filtered.sort((a, b) => {
+      switch (sort) {
+        case 'created': return new Date(b.w.createdAt || 0) - new Date(a.w.createdAt || 0);
+        case 'words': return b.stats.totalWords - a.stats.totalWords;
+        case 'progress': return b.stats.progress - a.stats.progress;
+        case 'name': return (a.w.name || '').localeCompare(b.w.name || '', 'zh-CN');
+        case 'updated':
+        default: return b.stats.lastUpdate - a.stats.lastUpdate;
+      }
+    });
+    return filtered;
+  }
+
+  function renderShowcase() {
+    const list = document.getElementById('showcase-list');
+    const summary = document.getElementById('showcase-summary');
+    if (!list || !summary) return;
+    const items = getSortedFilteredWorks();
+    if (items.length === 0) {
+      const filter = getShowcaseFilter();
+      list.innerHTML = '<div class="showcase-empty" style="grid-column:1/-1;">'
+        + '<div class="big">' + (filter ? '🔍' : '📭') + '</div>'
+        + '<div>' + (filter ? '没有匹配的作品' : '还没有任何作品') + '</div>'
+        + (filter ? '' : '<div style="margin-top:8px;font-size:12px;">点击顶栏「＋ 新建作品」开始创作</div>')
+        + '</div>';
+      summary.textContent = '共 0 部作品';
+      return;
+    }
+    const totalWords = items.reduce((s, x) => s + x.stats.totalWords, 0);
+    const totalChapters = items.reduce((s, x) => s + x.stats.completedChapters, 0);
+    summary.textContent = '共 ' + items.length + ' 部作品 · ' + totalWords.toLocaleString() + ' 字 · ' + totalChapters + ' 章已完成';
+    list.innerHTML = items.map(({ w, idx, stats }) => {
+      const gradient = getCoverGradient(w, idx);
+      const isCurrent = w.id === state.activeWorkId;
+      const badge = isCurrent
+        ? '<div class="showcase-cover-badge">当前</div>'
+        : (stats.progress >= 100 ? '<div class="showcase-cover-badge">完结</div>' : '');
+      return '<div class="showcase-card" data-id="' + w.id + '">'
+        + '<div class="showcase-cover" style="--cover-bg:' + gradient + ';">'
+        + badge
+        + '<div class="showcase-cover-title">' + escapeHtml(w.name || '未命名') + '</div>'
+        + '<div class="showcase-cover-sub">' + formatDateShort(w.createdAt) + '</div>'
+        + '</div>'
+        + '<div class="showcase-info">'
+        + '<div class="showcase-row"><span>总字数</span><b>' + stats.totalWords.toLocaleString() + '</b></div>'
+        + '<div class="showcase-row"><span>章节</span><b>' + stats.completedChapters + ' / ' + stats.chapterCount + '</b></div>'
+        + '<div class="showcase-row"><span>关卡</span><b>' + stats.completedLevels + ' / ' + stats.totalLevels + '</b></div>'
+        + '<div class="showcase-row"><span>更新</span><b>' + formatDateTime(w.updatedAt || w.createdAt) + '</b></div>'
+        + '<div class="showcase-progress"><div class="showcase-progress-fill" style="width:' + stats.progress + '%;"></div></div>'
+        + '<div class="showcase-row"><span>完成度</span><b>' + stats.progress + '%</b></div>'
+        + '</div>'
+        + '<div class="showcase-actions">'
+        + '<button data-act="read" data-id="' + w.id + '">📖 阅读</button>'
+        + '<button data-act="edit" data-id="' + w.id + '">✏️ 编辑</button>'
+        + '<button data-act="copy" data-id="' + w.id + '">📋 复制</button>'
+        + '<button data-act="del" data-id="' + w.id + '" class="danger">🗑️</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    list.querySelectorAll('.showcase-card').forEach(card => {
+      const id = card.getAttribute('data-id');
+      card.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const act = btn.getAttribute('data-act');
+          if (act === 'read') openReader(id);
+          else if (act === 'edit') { switchWork(id); hideShowcase(); }
+          else if (act === 'copy') copyWorkShowcase(id);
+          else if (act === 'del') deleteWorkFromShowcase(id);
+        });
+      });
+      card.addEventListener('click', () => openReader(id));
+    });
+  }
+
+  function showShowcase() {
+    const modal = document.getElementById('showcase-modal-bg');
+    if (!modal) return;
+    document.getElementById('showcase-filter').value = '';
+    document.getElementById('showcase-sort').value = 'updated';
+    renderShowcase();
+    modal.classList.add('open');
+  }
+
+  function hideShowcase() {
+    const modal = document.getElementById('showcase-modal-bg');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function copyWorkShowcase(workId) {
+    const w = state.works[workId];
+    if (!w) return;
+    const text = gatherWorkTextOf(w);
+    if (!text) { toastKind('作品暂无内容', 'warn'); return; }
+    const html = mdToWechatHtml(text);
+    navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+      })
+    ]).then(() => toastKind('已复制 ' + w.name + '（含 HTML）', 'ok'))
+      .catch(() => {
+        navigator.clipboard.writeText(text)
+          .then(() => toastKind('已复制 ' + w.name + '（纯文本）', 'ok'))
+          .catch(() => toastKind('复制失败,请手动操作', 'bad'));
+      });
+  }
+
+  function deleteWorkFromShowcase(workId) {
+    const w = state.works[workId];
+    if (!w) return;
+    if (!confirm('确定删除作品「' + w.name + '」?此操作不可恢复!')) return;
+    if (state.works[workId]) delete state.works[workId];
+    if (Object.keys(state.works).length === 0) {
+      const newId = uid();
+      state.works[newId] = { id: newId, name: '我的第一本小说', createdAt: new Date().toISOString(), currentLevel: 1, levels: emptyLevels(), todoDone: {} };
+      state.activeWorkId = newId;
+    } else if (state.activeWorkId === workId) {
+      state.activeWorkId = Object.keys(state.works)[0];
+    }
+    saveNow();
+    render();
+    renderShowcase();
+    toastKind('已删除「' + w.name + '」', 'ok');
+  }
+
+  function exportAllShowcase() {
+    const works = Object.values(state.works);
+    if (works.length === 0) { toastKind('没有可导出的作品', 'warn'); return; }
+    const chunks = works.map(w => '# ' + w.name + '\n\n' + (gatherWorkTextOf(w) || '（空）'));
+    const combined = chunks.join('\n\n---\n\n');
+    const html = mdToWechatHtml(combined);
+    const fileName = '全部作品-' + formatDateShort(new Date().toISOString()) + '.html';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toastKind('已导出 ' + works.length + ' 部作品', 'ok');
+  }
+
+  // ----- 阅读模式 -----
+  let readerWorkId = null;
+  let readerActiveLevelId = null;
+
+  function buildReaderToc(w) {
+    const toc = [];
+    LEVELS.forEach(lvl => {
+      const lv = w.levels[lvl.id];
+      if (!lv) return;
+      if (lvl.type === 'world') {
+        toc.push({ id: lvl.id, type: 'world', name: '📖 世界观', words: (lv.content || '').length });
+      } else if (lvl.type === 'character') {
+        toc.push({ id: lvl.id, type: 'character', name: '👤 主角档案', words: (lv.content || '').length });
+      } else if (lvl.type === 'outline') {
+        toc.push({ id: lvl.id, type: 'outline', name: '🗺️ 三幕大纲', words: (lv.content || '').length });
+      } else if (lvl.type === 'chapter' || lvl.type === 'boss') {
+        if (lv.content) {
+          toc.push({ id: lvl.id, type: lvl.type, name: lvl.name, words: lv.content.length });
+        }
+      }
+    });
+    return toc;
+  }
+
+  function renderReaderToc(toc) {
+    const wrap = document.getElementById('reader-toc');
+    if (!wrap) return;
+    if (toc.length === 0) {
+      wrap.innerHTML = '<div style="padding:20px 14px;color:var(--muted);font-size:12px;text-align:center;">尚无内容</div>';
+      return;
+    }
+    let html = '';
+    let lastSection = '';
+    toc.forEach(item => {
+      let section = '';
+      if (item.type === 'world' || item.type === 'character' || item.type === 'outline') section = '设定';
+      else section = '正文';
+      if (section !== lastSection) {
+        html += '<div class="reader-toc-section">' + section + '</div>';
+        lastSection = section;
+      }
+      const isActive = item.id === readerActiveLevelId;
+      const words = item.words > 0 ? '<div class="meta">' + item.words + ' 字</div>' : '';
+      html += '<div class="reader-toc-item' + (isActive ? ' active' : '') + '" data-id="' + item.id + '">'
+        + '<div>' + escapeHtml(item.name) + '</div>' + words
+        + '</div>';
+    });
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('.reader-toc-item').forEach(el => {
+      el.addEventListener('click', () => {
+        readerActiveLevelId = Number(el.getAttribute('data-id'));
+        renderReaderContent(readerWorkId);
+        wrap.querySelectorAll('.reader-toc-item').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+      });
+    });
+  }
+
+  function renderReaderContent(workId) {
+    const w = state.works[workId];
+    const container = document.getElementById('reader-content');
+    if (!w || !container) return;
+    const lv = w.levels[readerActiveLevelId];
+    if (!lv) { container.innerHTML = '<div class="empty-chapter">未选择章节</div>'; return; }
+    const lvl = LEVELS.find(l => l.id === readerActiveLevelId);
+    let html = '';
+    if (lvl.type === 'chapter' || lvl.type === 'boss') {
+      const badge = lvl.type === 'boss' ? '<span class="badge boss">🔥 Boss 关</span>' : '';
+      html += '<h1>' + escapeHtml(lvl.name) + badge + '</h1>';
+    } else if (lvl.type === 'world') {
+      html += '<h1>📖 世界观</h1>';
+    } else if (lvl.type === 'character') {
+      html += '<h1>👤 主角档案</h1>';
+    } else if (lvl.type === 'outline') {
+      html += '<h1>🗺️ 三幕大纲</h1>';
+    }
+    const content = (lv.content || '').trim();
+    if (!content) {
+      html += '<div class="empty-chapter">本关尚未创作内容</div>';
+    } else {
+      html += mdToWechatHtml(content);
+    }
+    container.innerHTML = html;
+    container.scrollTop = 0;
+  }
+
+  function openReader(workId, levelId) {
+    const w = state.works[workId];
+    if (!w) return;
+    readerWorkId = workId;
+    const toc = buildReaderToc(w);
+    if (toc.length === 0) {
+      toastKind('该作品尚无内容', 'warn');
+      return;
+    }
+    if (!levelId) {
+      const lastChapter = toc.filter(t => t.type === 'chapter' || t.type === 'boss').pop();
+      readerActiveLevelId = lastChapter ? lastChapter.id : toc[0].id;
+    } else {
+      readerActiveLevelId = levelId;
+    }
+    document.getElementById('reader-title').textContent = '📖 ' + w.name;
+    renderReaderToc(toc);
+    renderReaderContent(workId);
+    document.getElementById('reader-modal-bg').classList.add('open');
+  }
+
+  function hideReader() {
+    const modal = document.getElementById('reader-modal-bg');
+    if (modal) modal.classList.remove('open');
+    readerWorkId = null;
+    readerActiveLevelId = null;
+  }
+
+  function readerCopyAll() {
+    if (!readerWorkId) return;
+    const w = state.works[readerWorkId];
+    const text = gatherWorkTextOf(w);
+    if (!text) { toastKind('无内容可复制', 'warn'); return; }
+    const html = mdToWechatHtml(text);
+    navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+      })
+    ]).then(() => toastKind('已复制「' + w.name + '」', 'ok'))
+      .catch(() => {
+        navigator.clipboard.writeText(text)
+          .then(() => toastKind('已复制（纯文本）', 'ok'))
+          .catch(() => toastKind('复制失败', 'bad'));
+      });
+  }
+
+  function readerExport() {
+    if (!readerWorkId) return;
+    const w = state.works[readerWorkId];
+    const text = gatherWorkTextOf(w);
+    if (!text) { toastKind('无内容可导出', 'warn'); return; }
+    const html = mdToWechatHtml(text);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    a.download = w.name + '-' + formatDateShort(new Date().toISOString()) + '.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toastKind('已导出「' + w.name + '」', 'ok');
+  }
+
   // ===== 启动 =====
   if (typeof globalThis !== 'undefined') {
     globalThis.__NQ__ = {
@@ -1501,6 +1912,8 @@
       gatherCurrentText,
       callAI, getApiKey, setApiKey, hasApiKey, showApiSettings, hideApiSettings,
       showSearch, hideSearch, performSearch, searchInWork,
+      showShowcase, hideShowcase, renderShowcase, workStats,
+      openReader, hideReader, exportAllShowcase,
     };
   }
   
