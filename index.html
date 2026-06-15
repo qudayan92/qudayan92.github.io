@@ -1365,6 +1365,15 @@
       </p>
       <input type="password" id="api-key-input" placeholder="sk-..." style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:14px;outline:none;" />
       <p style="margin:10px 0 0;color:var(--muted);font-size:12px;">🔑 Key 仅保存在本地浏览器 localStorage，不会上传到任何服务器。</p>
+      <div style="margin-top:16px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="auto-dedai-toggle" style="width:18px;height:18px;accent-color:var(--accent);" />
+          <span>
+            <b style="color:var(--accent);">🪄 AI生成后自动降AI味</b><br>
+            <span style="color:var(--muted);font-size:12px;">启用后，AI续写/生成内容会自动运行三轮降重协议（需额外3次API调用，约30秒）</span>
+          </span>
+        </label>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn" id="api-key-clear" style="color:var(--bad);">清除 Key</button>

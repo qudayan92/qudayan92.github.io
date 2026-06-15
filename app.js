@@ -712,6 +712,11 @@
     }
   }
 
+  // ===== 自动降AI味设置 =====
+  const AUTO_DEDAI_KEY = 'novel-quest.auto-dedai';
+  function getAutoDedai() { return localStorage.getItem(AUTO_DEDAI_KEY) === 'true'; }
+  function setAutoDedai(v) { localStorage.setItem(AUTO_DEDAI_KEY, v ? 'true' : 'false'); }
+
   // ===== AI 续写 (DeepSeek API) =====
   async function callAI(prompt, mode) {
     const apiKey = getApiKey();
@@ -1839,6 +1844,8 @@
       input.value = getApiKey();
       input.focus();
     }
+    const toggle = document.getElementById('auto-dedai-toggle');
+    if (toggle) toggle.checked = getAutoDedai();
   }
 
   function hideApiSettings() {
@@ -1851,6 +1858,11 @@
     if (input) {
       setApiKey(input.value);
       toast(input.value ? '✅ API Key 已保存' : ' API Key 已清除');
+    }
+    const toggle = document.getElementById('auto-dedai-toggle');
+    if (toggle) {
+      setAutoDedai(toggle.checked);
+      if (toggle.checked) toast('🪄 已开启AI生成后自动降AI味');
     }
     hideApiSettings();
   }
@@ -2160,13 +2172,61 @@
       const st = work().levels[lvl.id];
       const tail = (st.content || '').slice(-500);
       const prompt = '关卡:' + lvl.name + '\n\n当前内容末尾:\n' + tail;
+      const autoDedai = getAutoDedai();
 
       btn.disabled = true;
       btn.textContent = '⏳ AI 续写中…';
       try {
         const out = await callAI(prompt);
-        ta.value = (ta.value ? ta.value + '\n\n' : '') + out;
+        if (!out || out.startsWith('⚠️') || out.startsWith('❌')) {
+          toast(out, true);
+          return;
+        }
+        let finalText = out;
+
+        // 自动降AI味:三轮降重协议
+        if (autoDedai) {
+          btn.textContent = '🪄 降重第1轮…';
+          const p1 = '你是凌晨三点还在赶稿的作者。改写以下文字。\n\n' +
+            '【核心要求:让文本读起来像一个人在发牢骚而不是AI在生成】\n\n' +
+            '1. 句子长度极端不均:至少3个句子只有1-3个字,至少2个句子超过50字\n' +
+            '2. 加入至少5种人味元素:内心吐槽/自相矛盾/跑题/口头禅/具体细节/身体感受/对读者喊话\n' +
+            '3. 禁止:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见\n' +
+            '4. 保留原文情节,只改写法。直接输出:\n\n' + finalText;
+          const r1 = await callAI(p1, 'rewrite');
+          if (r1 && !r1.startsWith('⚠️') && !r1.startsWith('❌')) {
+            finalText = r1;
+          }
+
+          btn.textContent = '🪄 降重第2轮…';
+          const p2 = '你是另一个作者,觉得还不够人,再改一遍。打乱段落逻辑/加反问句/加省略号/加破折号/故意啰嗦/加具体品牌地名。直接输出:\n\n' + finalText;
+          const r2 = await callAI(p2, 'rewrite');
+          if (r2 && !r2.startsWith('⚠️') && !r2.startsWith('❌')) {
+            finalText = r2;
+          }
+
+          btn.textContent = '🪄 降重第3轮…';
+          const p3 = '你是朱雀AI检测系统。检查困惑度/突发性/语义结构/段首重复/比喻词/对话/碎片句,修改所有AI特征。直接输出:\n\n' + finalText;
+          const r3 = await callAI(p3, 'rewrite');
+          if (r3 && !r3.startsWith('⚠️') && !r3.startsWith('❌')) {
+            finalText = r3;
+          }
+
+          // 后处理
+          finalText = deduplicateText(finalText);
+          finalText = postProcessText(finalText);
+          finalText = randomScramble(finalText);
+          finalText = humanChaos(finalText);
+          btn.textContent = '✨ AI 生成';
+        }
+
+        ta.value = (ta.value ? ta.value + '\n\n' : '') + finalText;
         ta.dispatchEvent(new Event('input'));
+
+        if (autoDedai) {
+          const score = detectAiFlavor(finalText);
+          toast('🪄 自动降重完成! AI味指数: ' + score.score + '/100');
+        }
       } finally {
         btn.disabled = false;
         btn.textContent = '✨ AI 生成';
