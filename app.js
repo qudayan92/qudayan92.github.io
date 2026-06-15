@@ -687,15 +687,45 @@
   function tryComplete() {
     const lvl = currentLevel();
     const st = work().levels[lvl.id];
-    const allOk = lvl.targets.every(t => t.test(st.content));
-    if (!allOk) { alert('尚未达到通关条件,请检查目标清单。'); return; }
+    const results = lvl.targets.map(function(t) {
+      return { label: t.label, ok: t.test(st.content), value: t.value };
+    });
+    const allOk = results.every(function(r) { return r.ok; });
+    if (!allOk) {
+      var failList = results.filter(function(r) { return !r.ok; });
+      var body = '<p style="margin:0 0 6px;color:var(--warn);">以下条件尚未满足：</p>';
+      body += '<ul class="nq-target-list">';
+      results.forEach(function(r) {
+        body += '<li class="' + (r.ok ? 'nq-ok' : 'nq-fail') + '">' +
+          '<span class="nq-target-icon">' + (r.ok ? '✅' : '❌') + '</span>' +
+          '<span><b>' + r.label + '</b>' + (r.value ? ' · ' + r.value + '字' : '') +
+          (r.ok ? ' — 已达成' : ' — 未达成') + '</span></li>';
+      });
+      body += '</ul>';
+      // 对于三幕大纲,给出具体格式提示
+      if (lvl.type === 'outline' && lvl.id === 3) {
+        body += '<div class="nq-hint">💡 三幕大纲需要按以下格式书写（每段至少30字）：</div>';
+        body += '<div class="nq-example">开端：\n这里写故事的开端部分...\n\n发展：\n这里写故事的发展部分...\n\n高潮-结局：\n这里写高潮和结局部分...</div>';
+      }
+      // 对于世界观/主角关卡
+      if (lvl.type === 'worldview' || lvl.type === 'protagonist') {
+        body += '<div class="nq-hint">💡 请确保内容达到字数要求，当前：' + (st.content || '').length + ' 字</div>';
+      }
+      nqDialog({
+        title: '通关条件未满足', icon: '📋', size: 'md',
+        body: body,
+        buttons: [{ text: '知道了', class: 'nq-btn-primary' }]
+      });
+      return;
+    }
     st.status = 'done';
-    const next = LEVELS.find(l => l.id === lvl.id + 1);
+    var next = LEVELS.find(function(l) { return l.id === lvl.id + 1; });
     if (next) {
       work().levels[next.id].status = 'unlocked';
       work().currentLevel = next.id;
     }
     scheduleSave();
+    nqAlert('🎉 通关成功！', '恭喜完成「' + lvl.name + '」！' + (next ? '已解锁下一关。' : '全部关卡已完成！'), '🎉');
     render();
   }
 
@@ -2003,6 +2033,71 @@
   function toastKind(msg, kind) {
     const isError = kind === 'bad' || kind === 'warn' || kind === 'error' || kind === true;
     toast(msg, isError);
+  }
+
+  // ===== 通用弹窗组件 =====
+  // 用法: nqDialog({ title, icon, size, body, buttons, onClose })
+  // size: 'sm' | 'md' | 'lg' | 'xl'
+  // buttons: [{ text, class, onClick }]
+  function nqDialog(opts) {
+    const overlay = document.createElement('div');
+    overlay.className = 'nq-dialog-overlay';
+    const size = opts.size || 'md';
+    overlay.innerHTML =
+      '<div class="nq-dialog nq-' + size + '">' +
+        '<div class="nq-dialog-head">' +
+          (opts.icon ? '<span class="nq-icon">' + opts.icon + '</span>' : '') +
+          '<h3>' + (opts.title || '提示') + '</h3>' +
+          '<button class="nq-close" data-nq-close>&times;</button>' +
+        '</div>' +
+        '<div class="nq-dialog-body">' + (opts.body || '') + '</div>' +
+        '<div class="nq-dialog-foot">' +
+          (opts.buttons || []).map(function(b, i) {
+            return '<button class="' + (b.class || 'nq-btn-cancel') + '" data-nq-btn="' + i + '">' + b.text + '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function() { overlay.classList.add('open'); });
+
+    function close() {
+      overlay.classList.remove('open');
+      setTimeout(function() { overlay.remove(); }, 200);
+      if (opts.onClose) opts.onClose();
+    }
+    overlay.querySelector('[data-nq-close]').addEventListener('click', close);
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) close();
+    });
+    (opts.buttons || []).forEach(function(b, i) {
+      var btn = overlay.querySelector('[data-nq-btn="' + i + '"]');
+      if (btn && b.onClick) {
+        btn.addEventListener('click', function() {
+          var result = b.onClick(close);
+          if (result !== false) close();
+        });
+      }
+    });
+    return { close: close, el: overlay };
+  }
+
+  // 便捷方法: nqAlert / nqConfirm / nqPrompt
+  function nqAlert(title, msg, icon) {
+    nqDialog({
+      title: title, icon: icon || '💡', size: 'sm',
+      body: '<p>' + msg + '</p>',
+      buttons: [{ text: '知道了', class: 'nq-btn-primary' }]
+    });
+  }
+  function nqConfirm(title, msg, icon, onOk) {
+    nqDialog({
+      title: title, icon: icon || '❓', size: 'sm',
+      body: '<p>' + msg + '</p>',
+      buttons: [
+        { text: '取消', class: 'nq-btn-cancel' },
+        { text: '确定', class: 'nq-btn-ok', onClick: function() { if (onOk) onOk(); } }
+      ]
+    });
   }
 
   // ===== Preview modal =====
@@ -3387,6 +3482,7 @@
       applyDedaiResult, showDetectResult,
       detectAiFlavor, dedaiLocal, dedaiUltimate, postProcessText, splitLongSentences, polishHuman, deduplicateText,
       showPaidModal, hidePaidModal, savePaidSettings, updatePaidRow, updatePaidPreview,
+      nqDialog, nqAlert, nqConfirm,
     };
   }
   

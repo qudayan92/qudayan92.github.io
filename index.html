@@ -834,6 +834,76 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { border-color: var(--bad); }
 
+  /* 通用弹窗组件 */
+  .nq-dialog-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 9500; animation: nq-fadeIn .15s ease;
+  }
+  .nq-dialog-overlay.open { display: flex; }
+  @keyframes nq-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes nq-slideUp { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .nq-dialog {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; display: flex; flex-direction: column;
+    overflow: hidden; animation: nq-slideUp .2s ease;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .nq-dialog.nq-sm { width: min(420px, 90vw); }
+  .nq-dialog.nq-md { width: min(600px, 92vw); }
+  .nq-dialog.nq-lg { width: min(800px, 94vw); }
+  .nq-dialog.nq-xl { width: min(1000px, 96vw); }
+  .nq-dialog-head {
+    padding: 16px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .nq-dialog-head h3 { margin: 0; font-size: 16px; flex: 1; }
+  .nq-dialog-head .nq-icon { font-size: 20px; }
+  .nq-dialog-head .nq-close {
+    width: 28px; height: 28px; border-radius: 6px; border: none;
+    background: var(--panel-2); color: var(--muted); cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .nq-dialog-head .nq-close:hover { background: var(--line); color: var(--text); }
+  .nq-dialog-body {
+    padding: 20px; overflow-y: auto; flex: 1;
+    max-height: 65vh; line-height: 1.7;
+  }
+  .nq-dialog-body p { margin: 0 0 10px; }
+  .nq-dialog-body .nq-hint {
+    background: var(--panel-2); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0;
+    font-size: 13px; color: var(--muted); margin: 12px 0;
+  }
+  .nq-dialog-body .nq-target-list { list-style: none; padding: 0; margin: 12px 0; }
+  .nq-dialog-body .nq-target-list li {
+    padding: 8px 12px; border-radius: 8px; margin-bottom: 6px;
+    background: var(--panel-2); display: flex; align-items: center; gap: 10px;
+  }
+  .nq-dialog-body .nq-target-list li.nq-ok { border-left: 3px solid var(--ok); }
+  .nq-dialog-body .nq-target-list li.nq-fail { border-left: 3px solid var(--bad); }
+  .nq-dialog-body .nq-target-icon { font-size: 18px; flex-shrink: 0; }
+  .nq-dialog-body .nq-example {
+    background: #0d1117; border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 16px; font: 13px/1.7 ui-monospace, "Cascadia Code", monospace;
+    white-space: pre-wrap; color: var(--accent); margin: 10px 0;
+  }
+  .nq-dialog-foot {
+    padding: 14px 20px; border-top: 1px solid var(--line);
+    display: flex; gap: 8px; justify-content: flex-end;
+  }
+  .nq-dialog-foot button {
+    padding: 8px 20px; border-radius: 8px; border: 1px solid var(--line);
+    cursor: pointer; font-size: 14px; transition: all .15s;
+  }
+  .nq-dialog-foot .nq-btn-cancel { background: var(--panel-2); color: var(--muted); }
+  .nq-dialog-foot .nq-btn-cancel:hover { background: var(--line); color: var(--text); }
+  .nq-dialog-foot .nq-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .nq-dialog-foot .nq-btn-primary:hover { filter: brightness(1.1); }
+  .nq-dialog-foot .nq-btn-ok { background: var(--ok); color: #000; border-color: var(--ok); }
+  .nq-dialog-foot .nq-btn-ok:hover { filter: brightness(1.1); }
+
   /* Preview modal */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(0,0,0,.7);
