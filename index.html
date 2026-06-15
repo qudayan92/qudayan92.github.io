@@ -21,6 +21,47 @@
       --locked: #3a4150;
     }
     * { box-sizing: border-box; }
+
+    /* ===== 全局统一样式滚动条 ===== */
+    /* WebKit (Chrome, Edge, Safari) */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--panel-2);
+      border-radius: 999px;
+      border: 2px solid var(--bg);
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--line);
+      background-clip: padding-box;
+      border: 2px solid var(--bg);
+    }
+    ::-webkit-scrollbar-thumb:active {
+      background: var(--accent);
+      background-clip: padding-box;
+      border: 2px solid var(--bg);
+    }
+    ::-webkit-scrollbar-corner {
+      background: var(--bg);
+    }
+    /* Firefox */
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--panel-2) transparent;
+    }
+    /* 滚动条角点与渐变边距 */
+    ::-webkit-scrollbar-button {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+
     html, body { height: 100%; margin: 0; }
     body {
       font: 14px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
