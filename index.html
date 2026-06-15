@@ -520,6 +520,7 @@
   .save-indicator.saving .dot { background: var(--muted); animation: spin 1s linear infinite; }
   .save-indicator.error .dot { background: var(--bad); }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .settings-btn { font-size: 18px !important; padding: 4px 8px !important; min-width: auto !important; }
 
   @media (max-width: 720px) {
     main { grid-template-columns: 1fr; }
@@ -544,6 +545,7 @@
   <div class="crumb" id="crumb">当前关卡:<b id="crumb-name">—</b></div>
   <div class="progress" title="整体进度"><i id="progress-bar"></i></div>
   <div class="progress-label" id="progress-label">0%</div>
+  <button class="btn ghost settings-btn" id="btn-api-settings" title="设置 DeepSeek API Key">⚙️</button>
 </header>
 
 <main>
@@ -701,6 +703,30 @@
       <button class="btn primary" id="modal-copy">📋 复制到剪贴板</button>
       <span class="spacer"></span>
       <button class="btn ghost" id="modal-ok">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- DeepSeek API 设置弹窗 -->
+<div class="modal-bg" id="api-settings-modal-bg">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⚙️ DeepSeek API 设置</h3>
+      <span class="x" id="api-settings-close">✕</span>
+    </div>
+    <div class="modal-body">
+      <p style="margin:0 0 12px;color:var(--muted);font-size:13px;">
+        输入你的 DeepSeek API Key 以启用 AI 续写功能。<br>
+        获取地址：<a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--accent);">platform.deepseek.com/api_keys</a>
+      </p>
+      <input type="password" id="api-key-input" placeholder="sk-..." style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:14px;outline:none;" />
+      <p style="margin:10px 0 0;color:var(--muted);font-size:12px;">🔑 Key 仅保存在本地浏览器 localStorage，不会上传到任何服务器。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="api-key-clear" style="color:var(--bad);">清除 Key</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="api-settings-cancel">取消</button>
+      <button class="btn primary" id="api-settings-save">保存</button>
     </div>
   </div>
 </div>

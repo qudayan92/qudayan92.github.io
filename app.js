@@ -585,18 +585,85 @@
     render();
   }
 
-  // ===== AI / 灵感 mock =====
+  // ===== API Key 管理 =====
+  function getApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE) || '';
+  }
+
+  function setApiKey(key) {
+    if (key && key.trim()) {
+      localStorage.setItem(API_KEY_STORAGE, key.trim());
+    } else {
+      localStorage.removeItem(API_KEY_STORAGE);
+    }
+  }
+
+  // ===== AI 续写 (DeepSeek API) =====
   async function callAI(prompt) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve(
-          '【AI 生成 · mock】\n你写到了:' + prompt.slice(0, 30) + '…\n\n' +
-          '他/她站在那里,风从远山吹来,带着松脂与未融的雪的气息。' +
-          '这一刻,所有的伏笔都收束到了一处——\n\n' +
-          '(请接入 DeepSeek API 以获得真正的续写。)'
-        );
-      }, 400);
-    });
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return '⚠️ 未配置 API Key，请先点击右上角 ⚙️ 设置 DeepSeek API Key。';
+    }
+
+    const systemPrompt = '你是一位才华横溢的中文小说家。根据用户提供的上下文，续写一段精彩的、符合故事逻辑的文字。保持原文的风格和语调，续写300-500字左右。直接输出续写内容，不要加任何前缀说明。';
+
+    try {
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey,
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.8,
+          max_tokens: 1024,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const msg = errData.error?.message || response.statusText;
+        return '❌ API 调用失败 (' + response.status + '): ' + msg;
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || '（AI 未返回内容）';
+    } catch (e) {
+      return '❌ 网络请求失败: ' + (e.message || e);
+    }
+  }
+
+  function showApiSettings() {
+    const modal = document.getElementById('api-settings-modal-bg');
+    if (modal) modal.classList.add('open');
+    const input = document.getElementById('api-key-input');
+    if (input) {
+      input.value = getApiKey();
+      input.focus();
+    }
+  }
+
+  function hideApiSettings() {
+    const modal = document.getElementById('api-settings-modal-bg');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function saveApiSettings() {
+    const input = document.getElementById('api-key-input');
+    if (input) {
+      setApiKey(input.value);
+      toast(input.value ? '✅ API Key 已保存' : ' API Key 已清除');
+    }
+    hideApiSettings();
+  }
+
+  function hasApiKey() {
+    return !!getApiKey();
   }
 
   function inspireHint() {
@@ -785,13 +852,26 @@
     document.getElementById('btn-submit').addEventListener('click', tryComplete);
 
     document.getElementById('btn-ai').addEventListener('click', async () => {
+      if (!hasApiKey()) {
+        showApiSettings();
+        return;
+      }
+      const btn = document.getElementById('btn-ai');
       const lvl = currentLevel();
       const st = work().levels[lvl.id];
-      const tail = (st.content || '').slice(-200);
-      const prompt = '关卡:' + lvl.name + '。当前末尾:' + tail;
-      const out = await callAI(prompt);
-      ta.value = (ta.value ? ta.value + '\n\n' : '') + out;
-      ta.dispatchEvent(new Event('input'));
+      const tail = (st.content || '').slice(-500);
+      const prompt = '关卡:' + lvl.name + '\n\n当前内容末尾:\n' + tail;
+
+      btn.disabled = true;
+      btn.textContent = '⏳ AI 续写中…';
+      try {
+        const out = await callAI(prompt);
+        ta.value = (ta.value ? ta.value + '\n\n' : '') + out;
+        ta.dispatchEvent(new Event('input'));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ AI 生成';
+      }
     });
 
     document.getElementById('btn-inspire').addEventListener('click', () => {
@@ -903,6 +983,23 @@
       if (e.key === 'Escape') hidePreview();
     });
 
+    // API 设置弹窗事件
+    document.getElementById('btn-api-settings').addEventListener('click', showApiSettings);
+    document.getElementById('api-settings-close').addEventListener('click', hideApiSettings);
+    document.getElementById('api-settings-cancel').addEventListener('click', hideApiSettings);
+    document.getElementById('api-settings-save').addEventListener('click', saveApiSettings);
+    document.getElementById('api-key-clear').addEventListener('click', () => {
+      setApiKey('');
+      document.getElementById('api-key-input').value = '';
+      toast('API Key 已清除');
+    });
+    document.getElementById('api-settings-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'api-settings-modal-bg') hideApiSettings();
+    });
+    document.getElementById('api-key-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') saveApiSettings();
+    });
+
     // 作品切换
     document.getElementById('work-switcher').addEventListener('click', e => {
       e.stopPropagation();
@@ -944,6 +1041,7 @@
   
   // ===== 公众号标题生成 =====
   const TITLE_HISTORY_KEY = 'novel-quest.title-history';
+  const API_KEY_STORAGE = 'novel-quest.api-key';
   
   // 5种标题策略
   const TITLE_STRATEGIES = {
@@ -1195,6 +1293,7 @@
       getTitleHistory, showTitlePanel, copyTitleToClipboard,
       validateContentForTitleGeneration, renderTitleHistory,
       gatherCurrentText,
+      callAI, getApiKey, setApiKey, hasApiKey, showApiSettings, hideApiSettings,
     };
   }
   
