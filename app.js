@@ -713,23 +713,38 @@
 
     let systemPrompt;
     if (mode === 'rewrite') {
-      systemPrompt = '你是一位擅长"祛除 AI 味"的中文小说编辑。你的任务是把用户提供的文字改写得更像真人手写。\n\n' +
-        '硬性规则：\n' +
-        '1. 删除一切"AI 标志性表达":值得注意的是 / 不得不说 / 令人惊讶的是 / 总的来说 / 综上所述 / 在当今社会 / 与此同时 / 不仅……而且…… / 既……又……\n' +
-        '2. 修辞词降级:把"仿佛""宛如""犹如"等高频比喻换成更具体的感官细节\n' +
-        '3. 句长多变:连续三句不能同长度,要长短交错\n' +
-        '4. 段落开头不能都是"我/他/她"或名词开头,要有动作/环境/对话\n' +
-        '5. 保留原文情节和人物关系,只改文风不改故事\n' +
-        '6. 适度加入口语化连接词:其实 / 说到底 / 倒也 / 偏偏 / 索性 / 罢了\n' +
-        '7. 不要使用项目符号或列表,直接输出连续段落\n' +
-        '8. 字数与原文相当(±20%)';
+      systemPrompt = '你是一位专门帮网文作者通过"朱雀AI检测"的改写专家。朱雀检测会分析：句长变异系数、段首词重复率、转折词密度、比喻词频率、情感词分布、主语切换频率等。\n\n' +
+        '你必须做到：\n\n' +
+        '【句式层面】\n' +
+        '1. 句长剧烈波动：最短8字，最长80字以上，连续三句长度差必须>15字\n' +
+        '2. 段落开头必须多样化：禁止连续两段用同一主语开头（我/他/她/它/这/那）\n' +
+        '3. 每3-4句插入一个极短句（3-8字）：比如"完了。""就这？""好家伙。""懂了。"\n' +
+        '4. 随机使用倒装句、省略句、断句：把完整句子故意写成碎片\n\n' +
+        '【词汇层面】\n' +
+        '5. 绝对禁止：值得注意的是/不得不说/令人惊讶的是/总的来说/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/无可否认/归根结底/由此可见/仿佛/宛如/犹如/似乎\n' +
+        '6. 替换比喻词：把"仿佛/宛如/犹如"换成口语化的"跟...似的""像...一样""跟见了鬼似的"\n' +
+        '7. 加入脏话/口头禅/方言感：妈的/操/我去/卧槽/真特么/这特么/你说气不气人\n' +
+        '8. 加入具体感官细节：汗水流进眼睛的刺痛感/指甲掐进掌心的疼/风灌进领口的凉\n\n' +
+        '【结构层面】\n' +
+        '9. 每200字至少一次人称切换（从"我"切到"他"或场景描写再切回来）\n' +
+        '10. 加入2-3处对话（哪怕很短），对话中带语气词：啊/呀/吧/呢/嘛/哦/嗐\n' +
+        '11. 偶尔用反问句、设问句，不要全是陈述句\n' +
+        '12. 段落长度不均匀：有的段落只有1句，有的有5-6句\n\n' +
+        '【核心原则】\n' +
+        '13. 保留原文情节和人物关系，只改文风不改故事\n' +
+        '14. 字数与原文相当(±20%)\n' +
+        '15. 直接输出改写后的段落，不要加任何前缀/后缀/说明/总结';
     } else {
-      systemPrompt = '你是一位才华横溢的中文小说家。续写规则:\n' +
-        '1. 像真人作家一样写作,不用"值得注意的是"等 AI 套话\n' +
-        '2. 句长要长短交错,避免三句同长度\n' +
-        '3. 善用动作、对话、环境细节,少用抽象形容\n' +
-        '4. 保持原文的风格和语调,续写300-500字左右。\n' +
-        '5. 直接输出续写内容,不要加任何前缀说明。';
+      systemPrompt = '你是网文平台的签约作者,正在赶稿。续写规则:\n' +
+        '1. 禁止使用:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/与此同时/仿佛/宛如/犹如\n' +
+        '2. 句长剧烈波动(8字到80字),连续三句长度差>15字\n' +
+        '3. 每3-4句插入一个极短句(3-8字):比如"完了。""操。""就这？"\n' +
+        '4. 加入具体感官:汗水/疼痛/温度/气味/声音细节\n' +
+        '5. 加入对话(哪怕很短),对话中带语气词:啊/呀/吧/呢/嘛\n' +
+        '6. 偶尔用倒装句、省略句、断句碎片\n' +
+        '7. 段落长度不均匀:有的1句,有的5-6句\n' +
+        '8. 保持原文风格和语调,续写300-500字\n' +
+        '9. 直接输出续写内容,不加前缀说明';
     }
 
     try {
@@ -773,6 +788,14 @@
     '不禁让人', '不禁感叹', '不禁想问', '作为一个', '身为一个',
     '归根结底', '一言以蔽之', '由此可见', '这表明', '这也意味着',
     '仿佛', '宛如', '犹如', '似乎', '好似', '俨然',
+    '值得一提', '需要指出', '换言之', '不难发现', '显而易见',
+    '事实上', '实际上', '从根本上说', '本质上', '从某种角度',
+    '毋庸讳言', '不可否认', '不可忽视', '这无疑', '可以说',
+    '无疑', '毫无疑问', '不言而喻', '由此可见', '正因如此',
+    '正是如此', '由此可见一斑', '由此可见端倪', '从这个意义上',
+    '在这个过程中', '在这个意义上', '在这个框架下', '在这个背景下',
+    '一定程度上', '从一定程度上来说', '在一定程度上', '某种层面上',
+    '值得注意的一点', '让人感到', '令人感到', '让人觉得',
   ];
 
   const AI_REPLACEMENTS = [
@@ -803,6 +826,37 @@
     [/犹如/g, '像'],
     [/似乎/g, '好像'],
     [/好似/g, '像'],
+    [/值得一提的是[，,]?/g, ''],
+    [/需要指出的是[，,]?/g, ''],
+    [/换言之[，,]?/g, '说白了,'],
+    [/不难发现[，,]?/g, ''],
+    [/显而易见[，,]?/g, ''],
+    [/事实上[，,]?/g, '其实,'],
+    [/实际上[，,]?/g, ''],
+    [/本质上[，,]?/g, ''],
+    [/毋庸讳言[，,]?/g, ''],
+    [/不可否认[，,]?/g, ''],
+    [/这无疑[，,]?/g, ''],
+    [/毫无疑问[，,]?/g, ''],
+    [/不言而喻[，,]?/g, ''],
+    [/正因如此[，,]?/g, '所以,'],
+    [/正是如此[，,]?/g, ''],
+    [/在这个过程中[，,]?/g, ''],
+    [/在这个意义上[，,]?/g, ''],
+    [/在这个背景下[，,]?/g, ''],
+    [/一定程度上[，,]?/g, ''],
+    [/从一定程度上来说[，,]?/g, ''],
+    [/在一定程度上[，,]?/g, ''],
+    [/值得指出的是[，,]?/g, ''],
+    [/让人感到[，,]?/g, ''],
+    [/令人感到[，,]?/g, ''],
+    [/作为一个[，,]?/g, ''],
+    [/身为一个[，,]?/g, ''],
+    [/不禁让人[^,。]*[，,]/g, ''],
+    [/不禁想问[^,。]*[，,]/g, ''],
+    [/从某种角度[来说]?[，,]?/g, ''],
+    [/不可忽视的是[，,]?/g, ''],
+    [/从这个意义上[来说]?[，,]?/g, ''],
   ];
 
   function postProcessText(text) {
@@ -846,35 +900,150 @@
     return out.join('');
   }
 
+  // ===== 深度降重:人味模拟 =====
+
+  // 口语化插入:在适当位置注入口语词/脏话/感叹
+  function injectColloquial(text) {
+    if (!text) return text;
+    const markers = ['卧槽', '我去', '妈的', '操', '真特么', '这特么', '你说气不气人',
+      '得了', '算了', '拉倒吧', '可拉倒吧', '行吧', '得嘞', '好家伙',
+      '哎', '嗐', '害', '啧', '嗯？', '啊？', '哦', '嘶'];
+    const sentences = text.split(/([。!?！？])/);
+    let result = [];
+    let inserted = 0;
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      if (!s || /[。!?！？]/.test(s)) { result.push(s); continue; }
+      // 每8-12句插入一个口语词,在句首或句尾
+      if (inserted < 3 && s.length > 15 && Math.random() < 0.12 && i > 2) {
+        const marker = markers[Math.floor(Math.random() * markers.length)];
+        if (Math.random() < 0.5) {
+          result.push(marker + '，' + s);
+        } else {
+          result.push(s + '——' + marker);
+        }
+        inserted++;
+      } else {
+        result.push(s);
+      }
+    }
+    return result.join('');
+  }
+
+  // 句式打散:强制改变连续句子的开头词/长度
+  function scrambleSentenceStarts(text) {
+    if (!text) return text;
+    const starts = ['我', '他', '她', '这', '那', '风', '光', '雨', '声音', '空气',
+      '手', '眼', '脚', '天', '地', '墙', '门', '窗', '灯', '影子'];
+    const sentences = text.split(/([。!?！？])/);
+    let result = [];
+    let lastStart = '';
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      if (!s || /[。!?！？]/.test(s)) { result.push(s); continue; }
+      const trimmed = s.trim();
+      if (trimmed.length < 5) { result.push(s); continue; }
+      const firstChar = trimmed.charAt(0);
+      // 如果连续两句以相同词开头,尝试替换
+      if (firstChar === lastStart && Math.random() < 0.6) {
+        const alt = starts.filter(x => x !== firstChar);
+        const newStart = alt[Math.floor(Math.random() * alt.length)];
+        result.push(newStart + trimmed.slice(1));
+        lastStart = newStart;
+      } else {
+        lastStart = firstChar;
+        result.push(s);
+      }
+    }
+    return result.join('');
+  }
+
+  // 段落长度打散:合并短段或拆分长段
+  function scrambleParagraphs(text) {
+    if (!text) return text;
+    const paras = text.split(/\n\n+/);
+    if (paras.length < 3) return text;
+    const out = [];
+    let i = 0;
+    while (i < paras.length) {
+      const p = paras[i];
+      // 如果连续3段都很短(<30字),合并前两段
+      if (i + 2 < paras.length && p.length < 30 && paras[i+1].length < 30 && paras[i+2].length < 30) {
+        out.push(p + paras[i+1]);
+        i += 2;
+      }
+      // 如果一段特别长(>200字),尝试在中间断开
+      else if (p.length > 200) {
+        const mid = Math.floor(p.length / 2);
+        const breakPoint = p.indexOf('，', mid);
+        if (breakPoint > 0 && breakPoint < p.length - 10) {
+          out.push(p.slice(0, breakPoint + 1));
+          out.push(p.slice(breakPoint + 1));
+        } else {
+          out.push(p);
+        }
+        i++;
+      } else {
+        out.push(p);
+        i++;
+      }
+    }
+    return out.join('\n\n');
+  }
+
+  // 插入碎片短句:在长段中随机插入3-8字的极短句
+  function injectFragments(text) {
+    if (!text) return text;
+    const fragments = ['完了。', '好家伙。', '就这？', '懂了。', '得了吧。', '算了。',
+      '嗯。', '哦？', '啊这。', '离谱。', '行吧。', '真行。', '绝了。', '麻了。',
+      '我去。', '不会吧。', '真的假的。', '不是。', '等等。', '算了算了。'];
+    const sentences = text.split(/([。!?！？])/);
+    let result = [];
+    let count = 0;
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      if (!s || /[。!?！？]/.test(s)) { result.push(s); continue; }
+      result.push(s);
+      // 每6-10句后,有概率插入一个碎片
+      if (count > 0 && count % (6 + Math.floor(Math.random() * 5)) === 0 && Math.random() < 0.4) {
+        const frag = fragments[Math.floor(Math.random() * fragments.length)];
+        // 插入在句号后面
+        if (result.length > 0 && /[。!?！？]$/.test(result[result.length - 1])) {
+          result.push(frag);
+        }
+      }
+      count++;
+    }
+    return result.join('');
+  }
+
   // 检测 AI 味:返回 0-100 分(越高越像 AI)
   function detectAiFlavor(text) {
     if (!text || text.length < 30) return { score: 0, signals: [] };
     const signals = [];
     let score = 0;
 
-    // 1. AI 套话命中
+    // 1. AI 套话命中(朱雀重点检测)
     let hitCount = 0;
     AI_TICKS.forEach(t => { if (text.indexOf(t) >= 0) hitCount++; });
     if (hitCount > 0) {
-      score += Math.min(40, hitCount * 12);
+      score += Math.min(45, hitCount * 10);
       signals.push('AI 套话 ×' + hitCount);
     }
 
-    // 2. 句长方差过低(AI 写得句长很均匀)
-    const sentences = text.split(/[。!?]/).filter(s => s.trim().length > 4);
+    // 2. 句长变异系数(朱雀核心指标)
+    const sentences = text.split(/[。!?！？]/).filter(s => s.trim().length > 4);
     if (sentences.length >= 5) {
       const lens = sentences.map(s => s.length);
       const avg = lens.reduce((a, b) => a + b, 0) / lens.length;
       const variance = lens.reduce((s, l) => s + Math.pow(l - avg, 2), 0) / lens.length;
       const stddev = Math.sqrt(variance);
-      const cv = stddev / avg; // 变异系数
-      if (cv < 0.25) {
-        score += 20;
-        signals.push('句长过于均匀(cv=' + cv.toFixed(2) + ')');
-      }
+      const cv = stddev / avg;
+      if (cv < 0.2) { score += 25; signals.push('句长极均匀(cv=' + cv.toFixed(2) + ')'); }
+      else if (cv < 0.35) { score += 15; signals.push('句长偏均匀(cv=' + cv.toFixed(2) + ')'); }
     }
 
-    // 3. 连续 3 句以相同词结尾(主语重复)
+    // 3. 连续同结尾
     if (sentences.length >= 3) {
       const ends = sentences.slice(0, -1).map(s => {
         const m = s.trim().match(/([^\s,，。;；]+)$/);
@@ -882,35 +1051,52 @@
       });
       let sameEnd = 1, maxSame = 1;
       for (let i = 1; i < ends.length; i++) {
-        if (ends[i] && ends[i] === ends[i - 1]) {
-          sameEnd++;
-          maxSame = Math.max(maxSame, sameEnd);
-        } else sameEnd = 1;
+        if (ends[i] && ends[i] === ends[i - 1]) { sameEnd++; maxSame = Math.max(maxSame, sameEnd); }
+        else sameEnd = 1;
       }
-      if (maxSame >= 3) {
-        score += 15;
-        signals.push('连续 ' + maxEndOrVar(maxSame) + ' 句同结尾');
-      }
+      if (maxSame >= 3) { score += 15; signals.push('连续 ' + maxSame + ' 句同结尾'); }
     }
 
-    // 4. "首先/其次/再次/最后" 模式
-    if (/(首先|第一)[,，][^\n]*?\n.*?(其次|第二|然后)[,，]/s.test(text)) {
-      score += 10;
-      signals.push('罗列式连接词');
+    // 4. 段首词重复率(朱雀检测)
+    const paras = text.split(/\n\n+/).filter(p => p.trim().length > 20);
+    if (paras.length >= 3) {
+      const firstChars = paras.map(p => p.trim().charAt(0));
+      let maxRepeat = 1, curRepeat = 1;
+      for (let i = 1; i < firstChars.length; i++) {
+        if (firstChars[i] === firstChars[i-1]) { curRepeat++; maxRepeat = Math.max(maxRepeat, curRepeat); }
+        else curRepeat = 1;
+      }
+      if (maxRepeat >= 3) { score += 12; signals.push('段首词重复 ' + maxRepeat + ' 次'); }
     }
 
-    // 5. 感叹号/问号过少(AI 几乎不用)
-    const exclaims = (text.match(/[!！?？]/g) || []).length;
-    if (exclaims === 0 && text.length > 200) {
-      score += 5;
-      signals.push('缺感叹/问号');
+    // 5. 感叹号/问号/口语词(AI缺少这些)
+    const exclCount = (text.match(/[!！?？]/g) || []).length;
+    const oralCount = (text.match(/卧槽|我去|妈的|操|真特么|算了|得了|好家伙|哎|嗐|啧/g) || []).length;
+    const ratio = text.length / Math.max(1, exclCount + oralCount);
+    if (ratio > 150 && text.length > 200) {
+      score += 8;
+      signals.push('缺口语/感叹');
     }
 
     // 6. 高频比喻词
-    const metaphorCount = (text.match(/仿佛|宛如|犹如|似乎/g) || []).length;
+    const metaphorCount = (text.match(/仿佛|宛如|犹如|似乎|好似|俨然/g) || []).length;
     if (metaphorCount > 3) {
       score += Math.min(15, metaphorCount * 3);
       signals.push('比喻词 ×' + metaphorCount);
+    }
+
+    // 7. 缺对话(网文必有对话)
+    const dialogCount = (text.match(/["「『"][^"」』"]{2,}["」』"]/g) || []).length;
+    if (dialogCount === 0 && text.length > 500) {
+      score += 8;
+      signals.push('缺对话');
+    }
+
+    // 8. 缺极短句(真人写作有碎片句)
+    const shortSentences = sentences.filter(s => s.trim().length <= 8).length;
+    if (shortSentences === 0 && sentences.length >= 10) {
+      score += 10;
+      signals.push('缺碎片短句');
     }
 
     return { score: Math.min(100, score), signals };
@@ -918,24 +1104,53 @@
 
   function maxEndOrVar(n) { return n; }
 
-  // 一键除 AI 味(纯本地,无需 API)
+  // 一键除 AI 味(纯本地,无需 API) — 多轮深度降重
   function dedaiLocal(text) {
     if (!text) return text;
     let out = text;
+    // 第一轮:套话替换+长句拆短
     out = postProcessText(out);
     out = splitLongSentences(out);
+    // 第二轮:句式打散+段落重组
+    out = scrambleSentenceStarts(out);
+    out = scrambleParagraphs(out);
+    // 第三轮:注入人味(口语词+碎片句)
+    out = injectColloquial(out);
+    out = injectFragments(out);
+    // 第四轮:清理格式
+    out = out
+      .replace(/[,，]{2,}/g, '，')
+      .replace(/[ ]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^[\s,。、]+/gm, '')
+      .replace(/^[,，\s]+/gm, '');
     return out;
   }
 
-  // 智能改写(调 API)
+  // 智能改写(调 API) — 两轮改写:先AI重写,再本地深度降重
   async function dedaiAI(text) {
     if (!text) return text;
     if (!hasApiKey()) {
       showApiSettings();
       return '⚠️ 请先配置 API Key';
     }
-    const prompt = '请将以下文字改写得更像真人手写(祛除 AI 味):\n\n"""\n' + text + '\n"""';
-    return await callAI(prompt, 'rewrite');
+    // 第一轮:AI深度改写
+    const prompt = '请将以下文字改写,目标是通过朱雀AI检测系统。你需要大幅改变句式结构、词汇选择和段落节奏:\n\n"""\n' + text + '\n"""';
+    const rewritten = await callAI(prompt, 'rewrite');
+    if (!rewritten || rewritten.startsWith('⚠️') || rewritten.startsWith('❌')) return rewritten;
+    // 第二轮:本地深度降重(进一步打散AI痕迹)
+    let result = rewritten;
+    result = postProcessText(result);
+    result = splitLongSentences(result);
+    result = scrambleSentenceStarts(result);
+    result = scrambleParagraphs(result);
+    result = injectColloquial(result);
+    result = injectFragments(result);
+    result = result
+      .replace(/[,，]{2,}/g, '，')
+      .replace(/[ ]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n');
+    return result;
   }
 
   // 应用改写到当前关卡
