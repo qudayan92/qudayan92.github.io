@@ -1104,6 +1104,78 @@
 
   function maxEndOrVar(n) { return n; }
 
+  // 随机化打散 — 每次运行结果不同,避免固定模式被检测
+  function randomScramble(text) {
+    if (!text) return text;
+    let out = text;
+    const sentences = out.split(/([。!?！？])/);
+    const result = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      if (!s || /[。!?！？]/.test(s)) { result.push(s); continue; }
+      let modified = s;
+      // 1. 概率化替换:每个词有10%概率被替换为同义低频词
+      modified = modified.replace(/[\u4e00-\u9fa5]{2,6}/g, match => {
+        if (Math.random() < 0.1) {
+          // 用同义但更口语/更罕见的表达
+          const swaps = {
+            '说道': ['嘟囔','嘀咕','嚷嚷','喊','吼','嘟囔着'][Math.floor(Math.random()*6)],
+            '走了': ['溜了','蹿了','挪了','晃悠着走了','颠了'][Math.floor(Math.random()*5)],
+            '看着': ['瞅着','瞄着','瞥着','盯着眼'][Math.floor(Math.random()*5)],
+            '想了想': ['琢磨了一下','寻思半天','咂摸咂摸味儿','转了转念头'][Math.floor(Math.random()*4)],
+            '点了点头': ['嗯了一声','鼻子哼了下','下巴颏动了动'][Math.floor(Math.random()*3)],
+            '笑了': ['乐了','噗嗤一下','嘴角咧了咧','憋不住乐了'][Math.floor(Math.random()*5)],
+            '转身': ['扭头','掉头','一拧身子','回过身'][Math.floor(Math.random()*4)],
+            '站了起来': ['噌地站起来','屁股一抬站起来了','两腿一撑立了起来'][Math.floor(Math.random()*4)],
+            '非常': ['贼','巨','特','老','相当'][Math.floor(Math.random()*5)],
+            '突然': ['猛地','冷不丁','一下子','冷不防'][Math.floor(Math.random()*4)],
+            '很快': ['没一会儿','转眼间','三下五除二','一溜烟'][Math.floor(Math.random()*4)],
+            '慢慢': ['一点一点','磨磨蹭蹭地','慢悠悠','不紧不慢地'][Math.floor(Math.random()*4)],
+            '终于': ['可算','好歹','好容易','总算'][Math.floor(Math.random()*4)],
+            '立刻': ['马上','麻利地','撒腿就','二话不说'][Math.floor(Math.random()*4)],
+            '好像': ['八成','估摸着','大概齐','差不离'][Math.floor(Math.random()*4)],
+            '但是': ['可','不过','话又说回来','话说回来'][Math.floor(Math.random()*4)],
+            '而且': ['还','再说','再加上','顺带一提'][Math.floor(Math.random()*4)],
+            '因为': ['原因嘛','说白了是因为','就因为'][Math.floor(Math.random()*3)],
+            '所以': ['这就导致','搞得','整得','弄了半天'][Math.floor(Math.random()*4)],
+            '尽管': ['虽说','固然','别看','话是这么说'][Math.floor(Math.random()*4)],
+            '于是': ['然后就','紧跟着','接下来就','干脆'][Math.floor(Math.random()*4)],
+            '不过': ['话是这么说','话又说回来','可话说回来'][Math.floor(Math.random()*3)],
+          };
+          return swaps[match] || match;
+        }
+        return match;
+      });
+      // 2. 概率化加语气词:15%概率在句首/句中加
+      if (Math.random() < 0.15 && modified.length > 10) {
+        const fillers = ['说真的','你猜怎么着','我跟你说','讲道理','说实话','怎么说呢','哎我说','嘿'];
+        const filler = fillers[Math.floor(Math.random() * fillers.length)];
+        if (Math.random() < 0.5) {
+          modified = filler + '，' + modified;
+        } else {
+          const pos = Math.floor(modified.length * 0.3 + Math.random() * modified.length * 0.4);
+          modified = modified.slice(0, pos) + '——' + filler + '——' + modified.slice(pos);
+        }
+      }
+      result.push(modified);
+    }
+    // 3. 概率化合并/拆分段落
+    let text2 = result.join('');
+    const paras = text2.split(/\n\n+/);
+    if (paras.length > 3) {
+      const out2 = [];
+      for (let j = 0; j < paras.length; j++) {
+        if (Math.random() < 0.2 && j > 0 && out2.length > 0) {
+          out2[out2.length - 1] += paras[j]; // 20%概率合并到上一段
+        } else {
+          out2.push(paras[j]);
+        }
+      }
+      text2 = out2.join('\n\n');
+    }
+    return text2;
+  }
+
   // 一键除 AI 味(纯本地,无需 API) — 多轮深度降重
   function dedaiLocal(text) {
     if (!text) return text;
@@ -1117,7 +1189,9 @@
     // 第三轮:注入人味(口语词+碎片句)
     out = injectColloquial(out);
     out = injectFragments(out);
-    // 第四轮:清理格式
+    // 第四轮:随机化打散(每次结果不同)
+    out = randomScramble(out);
+    // 第五轮:清理格式
     out = out
       .replace(/[,，]{2,}/g, '，')
       .replace(/[ ]{2,}/g, ' ')
@@ -1127,29 +1201,52 @@
     return out;
   }
 
-  // 智能改写(调 API) — 两轮改写:先AI重写,再本地深度降重
+  // 智能改写(调 API) — 3轮不同维度改写 + 随机化后处理
   async function dedaiAI(text) {
     if (!text) return text;
     if (!hasApiKey()) {
       showApiSettings();
       return '⚠️ 请先配置 API Key';
     }
-    // 第一轮:AI深度改写
-    const prompt = '请将以下文字改写,目标是通过朱雀AI检测系统。你需要大幅改变句式结构、词汇选择和段落节奏:\n\n"""\n' + text + '\n"""';
-    const rewritten = await callAI(prompt, 'rewrite');
-    if (!rewritten || rewritten.startsWith('⚠️') || rewritten.startsWith('❌')) return rewritten;
-    // 第二轮:本地深度降重(进一步打散AI痕迹)
-    let result = rewritten;
+
+    // 第一轮:困惑度打散 — 用不常见的词替换高概率词
+    const p1 = '你是网文老手。改写规则:\n' +
+      '1. 把所有"高级词汇"替换成"日常口语词":例如"凝聚"→"攒","闪烁"→"一亮一亮的","弥漫"→"到处都是"\n' +
+      '2. 用方言/俚语替换书面语:例如"感到"→"觉着","立刻"→"马上的事","非常"→"贼/特/巨"\n' +
+      '3. 句子别太完整,偶尔省略主语或宾语:例如"他走进房间"→"走进来了,房间里"\n' +
+      '4. 加入2-3处具体数字/细节:例如"走了很久"→"走了少说有二十分钟"\n' +
+      '5. 禁止使用:仿佛/宛如/犹如/似乎/值得注意的是/综上所述/与此同时/总的来说\n' +
+      '6. 直接输出改写内容,不加说明';
+    const r1 = await callAI(p1, 'rewrite');
+    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
+
+    // 第二轮:语义结构打乱 — 打破"总分总"模式
+    const p2 = '你是网文老手。对以下段落做结构调整:\n' +
+      '1. 打乱段落顺序:把结果/结论提前,把背景/铺垫放到后面\n' +
+      '2. 每段开头不能都是"我/他/她/这/那",要用动作/对话/环境/声音开头\n' +
+      '3. 在任意两段之间插入一段内心独白(1-2句,口语化)\n' +
+      '4. 把至少2处陈述句改成反问句或设问句\n' +
+      '5. 段落长度要参差不齐:有的1句就完,有的5-6句\n' +
+      '6. 直接输出调整后的内容,不加说明';
+    const r2 = await callAI(p2, 'rewrite');
+    if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
+
+    // 第三轮:风格注入 — 让文字有"人味儿"
+    const p3 = '你是网文老手。给以下文字注入个人风格:\n' +
+      '1. 加入你的口头禅或语气词:比如"说真的"/"你猜怎么着"/"我跟你说"\n' +
+      '2. 加入1-2处自嘲或吐槽:比如"我也挺无语的"/"就离谱"\n' +
+      '3. 偶尔用网络用语:比如"破防了"/"蚌埠住了"/"真下头"\n' +
+      '4. 加入身体感觉:比如"后背一凉"/"手心出汗"/"嗓子发紧"\n' +
+      '5. 保持原文情节不变,只改表达方式\n' +
+      '6. 直接输出改写内容,不加说明';
+    const r3 = await callAI(p3, 'rewrite');
+    if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
+
+    // 第四轮:随机化后处理(本地,无需API)
+    let result = r3;
     result = postProcessText(result);
     result = splitLongSentences(result);
-    result = scrambleSentenceStarts(result);
-    result = scrambleParagraphs(result);
-    result = injectColloquial(result);
-    result = injectFragments(result);
-    result = result
-      .replace(/[,，]{2,}/g, '，')
-      .replace(/[ ]{2,}/g, ' ')
-      .replace(/\n{3,}/g, '\n\n');
+    result = randomScramble(result);  // 随机打散
     return result;
   }
 
