@@ -721,38 +721,47 @@
 
     let systemPrompt;
     if (mode === 'rewrite') {
-      systemPrompt = '你是一位专门帮网文作者通过"朱雀AI检测"的改写专家。朱雀检测会分析：句长变异系数、段首词重复率、转折词密度、比喻词频率、情感词分布、主语切换频率等。\n\n' +
-        '你必须做到：\n\n' +
-        '【句式层面】\n' +
-        '1. 句长剧烈波动：最短8字，最长80字以上，连续三句长度差必须>15字\n' +
-        '2. 段落开头必须多样化：禁止连续两段用同一主语开头（我/他/她/它/这/那）\n' +
-        '3. 每3-4句插入一个极短句（3-8字）：比如"完了。""就这？""好家伙。""懂了。"\n' +
-        '4. 随机使用倒装句、省略句、断句：把完整句子故意写成碎片\n\n' +
-        '【词汇层面】\n' +
-        '5. 绝对禁止：值得注意的是/不得不说/令人惊讶的是/总的来说/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/无可否认/归根结底/由此可见/仿佛/宛如/犹如/似乎\n' +
-        '6. 替换比喻词：把"仿佛/宛如/犹如"换成口语化的"跟...似的""像...一样""跟见了鬼似的"\n' +
-        '7. 加入脏话/口头禅/方言感：妈的/操/我去/卧槽/真特么/这特么/你说气不气人\n' +
-        '8. 加入具体感官细节：汗水流进眼睛的刺痛感/指甲掐进掌心的疼/风灌进领口的凉\n\n' +
-        '【结构层面】\n' +
-        '9. 每200字至少一次人称切换（从"我"切到"他"或场景描写再切回来）\n' +
-        '10. 加入2-3处对话（哪怕很短），对话中带语气词：啊/呀/吧/呢/嘛/哦/嗐\n' +
-        '11. 偶尔用反问句、设问句，不要全是陈述句\n' +
-        '12. 段落长度不均匀：有的段落只有1句，有的有5-6句\n\n' +
-        '【核心原则】\n' +
-        '13. 保留原文情节和人物关系，只改文风不改故事\n' +
-        '14. 字数与原文相当(±20%)\n' +
-        '15. 直接输出改写后的段落，不要加任何前缀/后缀/说明/总结';
+      systemPrompt = '你是一个深夜赶稿到凌晨三点的网文作者。你刚喝完第三罐红牛,脑子有点糊,说话颠三倒四。你要改写用户给的文字。不要用任何总结/开头/结尾的格式词。\n\n' +
+        '改写时要做到——\n' +
+        '你不是在"改写",你是在重新讲一遍这个故事,用你自己的话。\n\n' +
+        '【最重要:你必须像一个真人】\n' +
+        '真人写东西的时候:\n' +
+        '- 会突然岔开话题说一句不相干的话,然后又绕回来\n' +
+        '- 会用错词然后自己纠正:那个什么,就是说\n' +
+        '- 会写着写着冒出一句内心吐槽\n' +
+        '- 会把一件小事写得很细,重要的事反而一笔带过\n' +
+        '- 会自相矛盾:上一句说"我不在乎",下一句又说"说不在意是假的"\n' +
+        '- 会重复自己的口头禅:比如老是说"说真的"或者"怎么说呢"\n\n' +
+        '【句式——必须极端不均匀】\n' +
+        '- 至少有3个句子只有一两个字:比如"操。""行。""完了。"\n' +
+        '- 至少有2个句子超过50字,中间用逗号不断连接,像说话一样不换气\n' +
+        '- 连续三句话的长度差必须超过20字\n' +
+        '- 偶尔来一个没有标点的流水句:我跟你说这事真的气死我了当时我整个人都傻了站在那里半天没动\n\n' +
+        '【词汇——用最土最随便的说法】\n' +
+        '- 禁止一切书面语:把"然而"换成"但",把"因此"换成"所以",把"尽管"换成"虽说"\n' +
+        '- 用网络梗和口头禅:好家伙/真有你的/离谱/麻了/裂开/蚌埠住了/无语子/绝绝子\n' +
+        '- 加入身体感受:后背发凉/头皮发麻/手心出汗/胃里翻江倒海/嗓子眼发紧\n' +
+        '- 加入时间的具体细节:周三下午/凌晨两点半/上个月/去年冬天\n' +
+        '- 加入真实的品牌/地名:便利店/地铁站/出租屋/小区门口/公交站牌\n\n' +
+        '【结构——故意写得乱】\n' +
+        '- 段落之间不需要有逻辑过渡,想跳就跳\n' +
+        '- 加入内心OS:写到一半突然来一句"等等,这么说好像也不对"\n' +
+        '- 加入对读者的喊话:"你猜怎么着""你别说""我说真的"\n' +
+        '- 段落长度极度不均:有的段落就一个字"啧",有的段落占半页\n\n' +
+        '禁止出现:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见\n\n' +
+        '保留原文情节,只改写法。直接输出,不加任何说明。';
+    } else if (mode === 'polish') {
+      systemPrompt = '你是深夜赶稿的网文作者。用户写了一段初稿,你只做微调。保留95%原文。只改错别字和明显语病。不要加任何AI套话。直接输出。';
     } else {
-      systemPrompt = '你是网文平台的签约作者,正在赶稿。续写规则:\n' +
-        '1. 禁止使用:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/与此同时/仿佛/宛如/犹如\n' +
-        '2. 句长剧烈波动(8字到80字),连续三句长度差>15字\n' +
-        '3. 每3-4句插入一个极短句(3-8字):比如"完了。""操。""就这？"\n' +
-        '4. 加入具体感官:汗水/疼痛/温度/气味/声音细节\n' +
-        '5. 加入对话(哪怕很短),对话中带语气词:啊/呀/吧/呢/嘛\n' +
-        '6. 偶尔用倒装句、省略句、断句碎片\n' +
-        '7. 段落长度不均匀:有的1句,有的5-6句\n' +
-        '8. 保持原文风格和语调,续写300-500字\n' +
-        '9. 直接输出续写内容,不加前缀说明';
+      systemPrompt = '你是一个深夜赶稿到凌晨三点的网文作者,刚喝完第三罐红牛。续写规则:\n' +
+        '1. 你不是在续写,你是在重新讲这个故事\n' +
+        '2. 句子长度极端不均:有1-2字的碎片,有50+字的流水句\n' +
+        '3. 加入内心吐槽/自相矛盾/突然岔开话题\n' +
+        '4. 用最土的说法,网络梗,口头禅,具体品牌地名\n' +
+        '5. 段落之间不用逻辑过渡,想跳就跳\n' +
+        '6. 禁止:值得注意的是/不得不说/综上所述/仿佛/宛如/犹如\n' +
+        '7. 保持原文风格,续写300-500字\n' +
+        '8. 直接输出,不加前缀说明';
     }
 
     try {
@@ -768,7 +777,8 @@
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
-          temperature: mode === 'rewrite' ? 1.2 : mode === 'polish' ? 0.3 : 0.9,
+          temperature: mode === 'rewrite' ? 1.5 : mode === 'polish' ? 0.3 : 0.9,
+          top_p: mode === 'rewrite' ? 0.95 : undefined,
           max_tokens: 1024,
         }),
       });
@@ -1025,7 +1035,7 @@
     return result.join('');
   }
 
-  // 检测 AI 味:返回 0-100 分(越高越像 AI)
+  // 检测 AI 味:返回 0-100 分(越高越像 AI, 0=完全像人写)
   function detectAiFlavor(text) {
     if (!text || text.length < 30) return { score: 0, signals: [] };
     const signals = [];
@@ -1039,7 +1049,7 @@
       signals.push('AI 套话 ×' + hitCount);
     }
 
-    // 2. 句长变异系数(朱雀核心指标)
+    // 2. 句长变异系数(朱雀核心指标-burstiness)
     const sentences = text.split(/[。!?！？]/).filter(s => s.trim().length > 4);
     if (sentences.length >= 5) {
       const lens = sentences.map(s => s.length);
@@ -1049,6 +1059,7 @@
       const cv = stddev / avg;
       if (cv < 0.2) { score += 25; signals.push('句长极均匀(cv=' + cv.toFixed(2) + ')'); }
       else if (cv < 0.35) { score += 15; signals.push('句长偏均匀(cv=' + cv.toFixed(2) + ')'); }
+      else if (cv >= 0.5) { score -= 5; } // 句长变异大=像人
     }
 
     // 3. 连续同结尾
@@ -1079,7 +1090,7 @@
 
     // 5. 感叹号/问号/口语词(AI缺少这些)
     const exclCount = (text.match(/[!！?？]/g) || []).length;
-    const oralCount = (text.match(/卧槽|我去|妈的|操|真特么|算了|得了|好家伙|哎|嗐|啧/g) || []).length;
+    const oralCount = (text.match(/卧槽|我去|妈的|操|真特么|算了|得了|好家伙|哎|嗐|啧|说真的|怎么说呢|你猜怎么着|你别说/g) || []).length;
     const ratio = text.length / Math.max(1, exclCount + oralCount);
     if (ratio > 150 && text.length > 200) {
       score += 8;
@@ -1107,7 +1118,28 @@
       signals.push('缺碎片短句');
     }
 
-    return { score: Math.min(100, score), signals };
+    // 9. 缺思维跳跃/内心OS(真人特征)
+    const innerThoughts = (text.match(/等等|不对|算了|怎么说呢|你猜|你说|说真的|突然想到|我跟你说/g) || []).length;
+    if (innerThoughts === 0 && text.length > 500) {
+      score += 5;
+      signals.push('缺内心OS');
+    }
+
+    // 10. 缺具体细节(真人会写具体时间/地点/数字)
+    const specifics = (text.match(/\d+月|\d+号|\d+点|[便利店|超市|地铁|公交|出租|小区|便利店]/g) || []).length;
+    if (specifics === 0 && text.length > 500) {
+      score += 5;
+      signals.push('缺具体细节');
+    }
+
+    // 11. 缺自相矛盾(真人写作特征)
+    const contradictions = (text.match(/其实也不|不过话说回来|也不全对|算了当我没说|也不好说|看情况/g) || []).length;
+    if (contradictions === 0 && text.length > 500) {
+      score += 3;
+      signals.push('缺自我纠正');
+    }
+
+    return { score: Math.min(100, Math.max(0, score)), signals };
   }
 
   function maxEndOrVar(n) { return n; }
@@ -1184,6 +1216,121 @@
     return text2;
   }
 
+  // ===== 人味注入引擎:模拟真人写作的"不完美" =====
+  // 朱雀检测的核心是困惑度+突发性+语义结构
+  // 真人写作的特征:思维跳跃/自相矛盾/口语化/具体细节/碎片句/重复口头禅
+  function humanChaos(text) {
+    if (!text || text.length < 50) return text;
+    let out = text;
+
+    // 1. 插入思维跳跃:在段落间插入不相干的内心OS
+    const jumps = [
+      '——等等,这么说好像也不对。', '——算了,接着说。',
+      '——怎么说呢,就是那种感觉。', '——你懂的吧?',
+      '——操,又跑题了。', '——哎不对,我刚说到哪了?',
+      '——突然想到一个事。', '——算了不说了。',
+      '——反正就那么回事。', '——你说这叫什么事。',
+      '——行吧,继续。', '——啧,怎么说呢。',
+    ];
+    const paras = out.split(/\n\n+/);
+    if (paras.length >= 3) {
+      const jumpCount = Math.floor(Math.random() * 3) + 1;
+      for (let i = 0; i < jumpCount; i++) {
+        const idx = Math.floor(Math.random() * (paras.length - 2)) + 1;
+        if (paras[idx].length > 30) {
+          const jump = jumps[Math.floor(Math.random() * jumps.length)];
+          paras.splice(idx + 1, 0, jump);
+        }
+      }
+      out = paras.join('\n\n');
+    }
+
+    // 2. 插入自相矛盾:真人写作经常自我纠正
+    const contradictions = [
+      '其实也不全对,我后来想想。', '但话说回来,也不全是这样。',
+      '算了,当我没说。', '不对不对,应该是这样。',
+      '也不好说。', '看情况吧。',
+    ];
+    const sentences = out.split(/([。!?！？])/);
+    if (sentences.length >= 8 && Math.random() < 0.4) {
+      const idx = Math.floor(Math.random() * (sentences.length - 4)) + 2;
+      const c = contradictions[Math.floor(Math.random() * contradictions.length)];
+      // 在句号后插入矛盾句
+      if (idx < sentences.length && /[。!?！？]/.test(sentences[idx])) {
+        sentences.splice(idx + 1, 0, c);
+      }
+      out = sentences.join('');
+    }
+
+    // 3. 加入具体时间/地点/数字细节
+    const details = [
+      '那天下午', '上周二', '凌晨两点多', '三月份的时候',
+      '在便利店门口', '在地铁上', '出租屋里', '小区楼下',
+      '花了三十多块', '等了快半小时', '走了大概十分钟',
+      '那家店', '公交站牌那儿', '楼梯间',
+    ];
+    if (Math.random() < 0.35 && out.length > 200) {
+      const detail = details[Math.floor(Math.random() * details.length)];
+      const pos = Math.floor(Math.random() * out.length * 0.6) + out.length * 0.2;
+      // 找到最近的句号插入
+      const idx = out.indexOf('。', pos);
+      if (idx > 0 && idx < out.length - 5) {
+        out = out.slice(0, idx + 1) + detail + out.slice(idx + 1);
+      }
+    }
+
+    // 4. 加入身体感受/物理细节
+    const sensations = [
+      '后背一阵发凉', '手心全是汗', '嗓子干得冒烟',
+      '胃里有点不舒服', '眼皮跳了两下', '脖子后面汗毛竖起来了',
+      '手指头冰凉', '脚底板生疼', '脑袋嗡嗡的',
+    ];
+    if (Math.random() < 0.3 && out.length > 300) {
+      const s = sensations[Math.floor(Math.random() * sensations.length)];
+      const idx = out.indexOf('。', Math.floor(out.length * 0.3));
+      if (idx > 0) {
+        out = out.slice(0, idx + 1) + s + '。' + out.slice(idx + 1);
+      }
+    }
+
+    // 5. 插入对读者的喊话/口语互动
+    const directAddress = [
+      '你猜怎么着', '你别说', '我说真的', '你想想',
+      '这事儿搁谁身上不急', '换你你受得了', '你说是不是',
+    ];
+    if (Math.random() < 0.25 && out.length > 300) {
+      const d = directAddress[Math.floor(Math.random() * directAddress.length)];
+      const pos = Math.floor(out.length * 0.5);
+      const idx = out.indexOf('，', pos);
+      if (idx > 0) {
+        out = out.slice(0, idx + 1) + d + '，' + out.slice(idx + 1);
+      }
+    }
+
+    // 6. 概率化重复一个词(模拟真人口头禅)
+    const tics = ['真的', '说真的', '怎么讲', '反正', '就那种', '说白了', '你知道吗'];
+    if (Math.random() < 0.3) {
+      const tic = tics[Math.floor(Math.random() * tics.length)];
+      // 找到文中已经出现过的tic,再加一次
+      if (out.indexOf(tic) >= 0) {
+        const lastIdx = out.lastIndexOf('。');
+        if (lastIdx > 0) {
+          out = out.slice(0, lastIdx + 1) + tic + '，' + out.slice(lastIdx + 1);
+        }
+      }
+    }
+
+    // 7. 打乱段落内标点密度:有的地方不加标点像流水账
+    out = out.replace(/([，,][^，,。！！?？]{15,30})，/g, function(match) {
+      if (Math.random() < 0.25) {
+        return match.replace(/，/, '');
+      }
+      return match;
+    });
+
+    return out;
+  }
+
   // 一键除 AI 味(纯本地,无需 API) — 多轮深度降重
   function dedaiLocal(text) {
     if (!text) return text;
@@ -1199,7 +1346,9 @@
     out = injectFragments(out);
     // 第四轮:随机化打散(每次结果不同)
     out = randomScramble(out);
-    // 第五轮:清理格式
+    // 第五轮:人味注入(思维跳跃+自相矛盾+具体细节)
+    out = humanChaos(out);
+    // 第六轮:清理格式
     out = out
       .replace(/[,，]{2,}/g, '，')
       .replace(/[ ]{2,}/g, ' ')
@@ -1234,6 +1383,30 @@
   function dedaiDeepLocal(text) {
     if (!text) return text;
     return deepLocalDedai(text);
+  }
+
+  // 终极降重:翻译链 + 三轮协议 + 人味注入的最强组合
+  // 先用翻译链破坏token分布,再用三轮协议注入人味
+  async function dedaiUltimate(text) {
+    if (!text) return text;
+    if (!hasApiKey()) {
+      showApiSettings();
+      return '⚠️ 请先配置 API Key';
+    }
+
+    // 第1步:翻译链破坏token分布(中→日→英→中)
+    let result = await translationChain(text);
+    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) return result;
+
+    // 第2步:三轮协议注入人味
+    result = await threeRoundProtocol(result);
+    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) return result;
+
+    // 第3步:最终人味注入
+    result = humanChaos(result);
+    result = deduplicateText(result);
+    result = postProcessText(result);
+    return result;
   }
 
   // 去除连续重复的段落/句子
@@ -1281,7 +1454,7 @@
   }
 
   // ===== 翻译链降AI(参考 lynote-ai/humanize-text) =====
-  // 核心原理:跨语言翻译破坏token分布,让统计特征偏离AI模式
+  // 核心原理:3跳跨语言翻译彻底破坏token分布,让统计特征完全偏离AI模式
   async function translationChain(text) {
     if (!text) return text;
     if (!hasApiKey()) {
@@ -1289,26 +1462,44 @@
       return '⚠️ 请先配置 API Key';
     }
 
-    // 第1步:中文→日语(DeepSeek翻译,注入日语表达习惯)
-    const p1 = '你是专业翻译。把以下中文翻译成日语,保留原文情感和细节,直接输出日语译文:\n\n' + text;
+    // 第1步:中文→日语(注入日语表达习惯和句式结构)
+    const p1 = '你是专业翻译。把以下中文翻译成日语,保留原文情感和细节,直接输出日语译文。不要解释:\n\n' + text;
     const r1 = await callAI(p1, 'polish');
     if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
 
-    // 第2步:日语→中文(用不同表达习惯翻译回来)
-    const p2 = '你是专业翻译。把以下日语翻译成中文,但要用完全不同的表达方式,不要直译,要意译,用口语化的中文:\n\n' + r1;
+    // 第2步:日语→英语(二次跨语言,进一步破坏中文token分布)
+    const p2 = 'Translate the following Japanese text into English. Be natural, not literal. Output only the English translation:\n\n' + r1;
     const r2 = await callAI(p2, 'polish');
     if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
 
-    // 第3步:后处理
-    let result = r2;
+    // 第3步:英语→中文(第三次翻译回来,表达习惯已被彻底改变)
+    const p3 = '你是专业翻译。把以下英文翻译成中文,要求口语化、自然,不要直译。用最日常的说法。直接输出中文译文:\n\n' + r2;
+    const r3 = await callAI(p3, 'polish');
+    if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
+
+    // 第4步:注入人味(因为翻译会丢失口语感)
+    const p4 = '你是深夜赶稿的网文作者。改写以下文字,让它读起来像一个人在深夜写给朋友看的:\n' +
+      '1. 加入2-3句内心吐槽或自相矛盾\n' +
+      '2. 加入1-2个具体细节(时间/地点/品牌)\n' +
+      '3. 句子长短极端不均,有碎片短句\n' +
+      '4. 用口语和网络梗,不要书面语\n' +
+      '5. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如\n' +
+      '6. 保留原文情节,直接输出:\n\n' + r3;
+    const r4 = await callAI(p4, 'polish');
+    if (!r4 || r4.startsWith('⚠️') || r4.startsWith('❌')) return r4;
+
+    // 后处理
+    let result = r4;
     result = deduplicateText(result);
     result = postProcessText(result);
     result = splitLongSentences(result);
+    result = humanChaos(result);
     return result;
   }
 
   // ===== 三轮降重协议(参考 xiaofenggan01/aigc-reduce) =====
-  // 第一轮:去痕迹(减法) → 第二轮:注入人味(加法) → 第三轮:自检审计
+  // 核心目标:让文本的困惑度↑突发性↑语义结构被打散
+  // 第一轮:用最极端的方式重写(加法) → 第二轮:注入人味(加法) → 第三轮:自检审计
   async function threeRoundProtocol(text) {
     if (!text) return text;
     if (!hasApiKey()) {
@@ -1316,55 +1507,55 @@
       return '⚠️ 请先配置 API Key';
     }
 
-    // 第一轮:去AI痕迹(词级+句级+段落级,修改率>40%)
-    const p1 = '你是专业降重助手。执行第一轮"去痕迹"改写:\n\n' +
-      '【词级替换(10-15%)】\n' +
-      '- 模板词替换:值得注意的是→删掉,不得不说→删掉,综上所述→删掉\n' +
-      '- 72个中文AI高频词全部替换:\n' +
-      '  深入→扎进去, 领域→地盘, 赋能→帮忙, 聚焦→盯住, 打造→搞, \n' +
-      '  优化→改好, 提升→拉高, 增强→加码, 完善→补全, 推动→推一把,\n' +
-      '  发展→往前走, 创新→玩新花样, 突破→打破, 引领→带路, \n' +
-      '  核心→最关键的, 关键→要命的, 重要→顶要紧的, \n' +
-      '  基础→底子, 框架→架子, 模式→套路, 体系→一整套,\n' +
-      '  构建→搭, 建立→立起来, 实现→搞成, 达到→够着, \n' +
-      '  通过→靠着, 利用→用上, 依托→靠着, 基于→打底是\n\n' +
-      '【句级重构(15-20%)】\n' +
-      '- 语序重组:主语后置/前置,长句拆短,被动改主动\n' +
-      '- 例如:"这个方案被大家认可"→"大伙儿都觉得这方案成"\n' +
-      '- 例如:"通过不断努力取得了成果"→"折腾了一通,总算搞成了"\n\n' +
-      '【段落级调整(10-15%)】\n' +
-      '- 打破对称段长:连续3段长度相近时,故意扩写/精简\n' +
-      '- 加入段落间过渡:每段结尾加引导\n\n' +
-      '保持原文情节不变,直接输出改写内容:\n\n' + text;
+    // 第一轮:极端重写——让困惑度飙升
+    // 朱雀看的是token概率分布,AI写的每个词都是"最可能的词"
+    // 我们需要让AI故意选择"不太可能的词",提高困惑度
+    const p1 = '你是凌晨三点还在赶稿的作者,刚跟编辑吵完架,心情很操蛋。改写以下文字。\n\n' +
+      '【核心要求:让文本读起来像一个人在发牢骚而不是AI在生成】\n\n' +
+      '1. 句子长度极端不均:\n' +
+      '   - 至少3个句子只有1-3个字:操。/行。/算了。\n' +
+      '   - 至少2个句子超过50字,用逗号连着写不换气\n' +
+      '   - 连续三句长度差>20字\n\n' +
+      '2. 加入以下"人味"元素(至少选5个):\n' +
+      '   a) 内心吐槽:写到一半突然"等等,这么说不对"\n' +
+      '   b) 自相矛盾:上句说"我无所谓"下句说"说不在意是假的"\n' +
+      '   c) 跑题:突然岔开说一句不相干的,然后又绕回来\n' +
+      '   d) 重复口头禅:同一段里出现2次"说真的"或"怎么说呢"\n' +
+      '   e) 具体细节:时间(周三下午)/地点(便利店门口)/品牌(全家)/数字(花了38块)\n' +
+      '   f) 身体感受:后背发凉/手心出汗/嗓子干得冒烟/脑袋嗡嗡的\n' +
+      '   g) 对读者喊话:你猜怎么着/你别说/你说是不是\n\n' +
+      '3. 禁止使用以下词汇(用了就是AI):\n' +
+      '   值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/\n' +
+      '   与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见/\n' +
+      '   值得一提/不难发现/显而易见/事实上/实际上/从某种角度\n\n' +
+      '4. 保留原文情节,只改写法。直接输出改写内容:\n\n' + text;
     const r1 = await callAI(p1, 'rewrite');
     if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
 
-    // 第二轮:注入人类特征(加法)
-    const p2 = '你是网文老手。给以下文字注入"人味儿":\n\n' +
-      '1. 加入作者判断:"说实话我觉得""这事儿挺扯的""按我的经验"\n' +
-      '2. 嵌入具体细节:数字/时间/地点/感官(汗水/疼/温度/气味)\n' +
-      '3. 加入内心独白:"我当时就想""后来想想""现在回头看"\n' +
-      '4. 偶尔用反问/设问:"这谁能想到?""你说气不气人?"\n' +
-      '5. 加入1-2处口语化表达/口头禅:"说真的""你猜怎么着"\n' +
-      '6. 段落长度不均匀:有的1句,有的5-6句\n' +
-      '7. 保持原文情节不变\n\n' +
-      '直接输出改写内容:\n\n' + r1;
+    // 第二轮:注入更深层的人味
+    const p2 = '你是另一个作者,看了上面这段文字觉得还不够"人",再改一遍:\n\n' +
+      '这次的重点:\n' +
+      '1. 打乱段落逻辑:段落之间不需要过渡,想跳就跳\n' +
+      '2. 加入2-3个反问句或设问句\n' +
+      '3. 加入1处省略号表示犹豫或思考\n' +
+      '4. 加入1处破折号表示补充说明或思维跳跃\n' +
+      '5. 故意把一句话写得啰嗦,像真人说话\n' +
+      '6. 再加入1-2个具体的品牌/地名/时间\n' +
+      '7. 禁止AI套话,直接输出:\n\n' + r1;
     const r2 = await callAI(p2, 'rewrite');
     if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
 
-    // 第三轮:自检审计(AI自己检查)
-    const p3 = '你是AI检测专家。审视以下文本,找出还像AI写的痕迹并修改:\n\n' +
-      '检查项:\n' +
-      '1. 重要性膨胀:有没有"至关重要""不可或缺"等词?→换成大白话\n' +
-      '2. 同义词轮换:同一概念是否被换了3个以上名字?→统一用1个\n' +
-      '3. 三板斧强迫症:有没有"A、B和C"三件套?→拆开写\n' +
-      '4. 系词回避:有没有用"作为...的体现/代表"绕弯子?→直接说\n' +
-      '5. 假大空结论:有没有"具有良好的应用前景"?→删掉或具体化\n' +
-      '6. 段落对称:连续段落长度是否太接近?→参差不齐\n' +
-      '7. 套话残留:还有没有"值得注意/不得不说/综上"?→全删\n' +
-      '8. 被动语态:有没有大量"被...所..."?→改主动\n' +
-      '9. 缺对话:全篇没一句对话?→加1-2句\n' +
-      '10. 缺碎片句:全是完整长句?→加几个3-8字的短句\n\n' +
+    // 第三轮:自检审计——模拟朱雀检测逻辑来检查
+    const p3 = '你是朱雀AI检测系统。分析以下文本,找出所有"像AI写的"特征并修改:\n\n' +
+      '朱雀检测维度:\n' +
+      '1. 困惑度(perplexity):AI文本每个词都是"最可能的选择"→故意用一些不太可能的词\n' +
+      '2. 突发性(burstiness):AI句长均匀→确保句长变异系数>0.5\n' +
+      '3. 语义结构:AI总分总→打破对称结构\n' +
+      '4. 段首重复:AI爱用相同主语开头→检查并打乱\n' +
+      '5. 比喻词密度:AI用"仿佛/宛如/犹如"→全部替换\n' +
+      '6. 情感均匀:AI情感太稳定→加入情绪波动\n' +
+      '7. 缺对话:网文必有对话→确保有2+处对话\n' +
+      '8. 缺碎片句:真人写作有3-8字的极短句→确保有3+个\n\n' +
       '直接输出修改后的文本:\n\n' + r2;
     const r3 = await callAI(p3, 'rewrite');
     if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
@@ -1375,6 +1566,7 @@
     result = postProcessText(result);
     result = splitLongSentences(result);
     result = randomScramble(result);
+    result = humanChaos(result);
     return result;
   }
 
@@ -1420,7 +1612,6 @@
       [/[持续]+/g, '一直'],
       [/[进一步]+/g, '再'],
       [/[不断]+/g, '不停地'],
-      [/[有效]+/g, '管用'],
       [/[高度重视]+/g, '特别看重'],
       [/[广泛关注]+/g, '大家都在看'],
       [/[具有重要意义]+/g, '挺重要的'],
@@ -1440,7 +1631,10 @@
     // 第4轮:随机化
     out = randomScramble(out);
 
-    // 第5轮:清理
+    // 第5轮:人味注入(思维跳跃+自相矛盾+具体细节)
+    out = humanChaos(out);
+
+    // 第6轮:清理
     out = postProcessText(out);
     out = splitLongSentences(out);
     return out;
@@ -1572,7 +1766,7 @@
     const text = dedaiState.original;
     const afterTa = document.getElementById('dedai-text-after');
     const goBtn = document.getElementById('dedai-go');
-    if ((dedaiState.mode === 'ai' || dedaiState.mode === 'translate') && !hasApiKey()) {
+    if ((dedaiState.mode === 'ai' || dedaiState.mode === 'translate' || dedaiState.mode === 'ultimate') && !hasApiKey()) {
       showApiSettings();
       return;
     }
@@ -1587,6 +1781,8 @@
         result = await dedaiAI(text);
       } else if (dedaiState.mode === 'translate') {
         result = await dedaiTranslate(text);
+      } else if (dedaiState.mode === 'ultimate') {
+        result = await dedaiUltimate(text);
       }
       if (!result || result.startsWith('⚠️') || result.startsWith('❌')) {
         toastKind(result || '改写失败', 'bad');
@@ -3060,7 +3256,7 @@
       openReader, hideReader, exportAllShowcase,
       showDedai, hideDedai, runDedaiDetect, runDedaiRewrite,
       applyDedaiResult, showDetectResult,
-      detectAiFlavor, dedaiLocal, postProcessText, splitLongSentences, polishHuman, deduplicateText,
+      detectAiFlavor, dedaiLocal, dedaiUltimate, postProcessText, splitLongSentences, polishHuman, deduplicateText,
       showPaidModal, hidePaidModal, savePaidSettings, updatePaidRow, updatePaidPreview,
     };
   }

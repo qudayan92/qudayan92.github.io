@@ -487,11 +487,13 @@
   /* ===== 9. 除 AI 味 ===== */
   .dedai-modes {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 14px;
   }
   .dedai-modes button {
-    flex: 1;
+    flex: 1 1 calc(33.33% - 8px);
+    min-width: 140px;
     padding: 10px 14px;
     background: var(--panel-2);
     border: 1px solid var(--line);
@@ -1483,7 +1485,11 @@
         </button>
         <button data-mode="translate">
           <span class="name">🔄 翻译链</span>
-          <span class="desc">中→日→中翻译,破坏 token 分布。需 API Key。</span>
+          <span class="desc">中→日→英→中翻译,破坏 token 分布。需 API Key。</span>
+        </button>
+        <button data-mode="ultimate">
+          <span class="name">💥 终极降重</span>
+          <span class="desc">翻译链+三轮协议+人味注入,最强组合。需 API Key。耗时较长。</span>
         </button>
         <button data-mode="detect">
           <span class="name">📊 仅检测</span>
