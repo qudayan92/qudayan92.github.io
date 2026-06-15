@@ -1,0 +1,710 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>小说闯关 · 作家工坊</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161a22;
+      --panel-2: #1c2230;
+      --line: #2a3142;
+      --text: #e6e9ef;
+      --muted: #8a93a6;
+      --accent: #6ea8ff;
+      --accent-2: #9b6eff;
+      --gold: #f5c451;
+      --ok: #4ade80;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --locked: #3a4150;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font: 14px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    /* 写作实时反馈样式 */
+    .write-feedback {
+      padding: 12px 24px;
+      background: linear-gradient(180deg, var(--panel-2), transparent);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .feedback-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .feedback-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .feedback-icon {
+      font-size: 16px;
+    }
+    .feedback-text {
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .feedback-text:hover {
+      color: var(--accent);
+    }
+    .progress-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .progress-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: var(--panel-2);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border-radius: 4px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+
+  .progress-percentage {
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    /* 标题生成相关样式 */
+    .title-option {
+      padding: 12px 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      margin-bottom: 8px;
+    }
+    
+    .title-option:hover {
+      background: var(--panel);
+      border-color: var(--accent);
+    }
+    
+    .title-text {
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    
+    .title-strategy {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .title-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    
+    .title-empty {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 10px;
+    }
+    
+    .title-history-item {
+      padding: 8px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    
+    .title-history-item:hover {
+      background: var(--panel);
+      border-color: var(--accent);
+    }
+    
+    .title-history-text {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    
+    .title-history-meta {
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    
+    .title-history-time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* 标题生成相关样式 */
+    .title-option {
+      padding: 12px 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      margin-bottom: 8px;
+    }
+    
+    .title-option:hover {
+      background: var(--panel);
+      border-color: var(--accent);
+    }
+    
+    .title-text {
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    
+    .title-strategy {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .title-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    
+    .title-empty {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 10px;
+    }
+    
+    .title-history-item {
+      padding: 8px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    
+    .title-history-item:hover {
+      background: var(--panel);
+      border-color: var(--accent);
+    }
+    
+    .title-history-text {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    
+    .title-history-meta {
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    
+    .title-history-time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+  /* ===== 顶部栏 ===== */
+  header.topbar {
+    display: flex; align-items: center; gap: 16px;
+    height: 56px; padding: 0 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    position: relative; z-index: 100;
+  }
+  .brand { font-weight: 700; letter-spacing: .5px; }
+  .brand .dot { color: var(--accent); }
+
+  /* 作品切换器 */
+  .work-switcher {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 8px;
+    background: var(--panel-2); cursor: pointer;
+    border: 1px solid var(--line);
+    max-width: 260px;
+  }
+  .work-switcher:hover { border-color: var(--accent); }
+  .work-switcher .work-name {
+    font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 200px;
+  }
+  .work-switcher .caret { color: var(--muted); font-size: 10px; }
+
+  .work-menu {
+    position: absolute; top: 50px; left: 20px;
+    width: 320px; max-height: 70vh; overflow: auto;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.4);
+    padding: 6px; display: none; z-index: 9999;
+  }
+  .work-menu.open { display: block; }
+  .work-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .work-item:hover { background: var(--panel); }
+  .work-item.active { background: rgba(110,168,255,.12); }
+  .work-item-main { flex: 1; min-width: 0; }
+  .work-item-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .work-item-sub { font-size: 12px; color: var(--muted); }
+  .work-item-check { color: var(--accent); }
+  .work-menu .divider { height: 1px; background: var(--line); margin: 6px 4px; }
+  .work-menu .menu-action {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    color: var(--text);
+  }
+  .work-menu .menu-action:hover { background: var(--panel); }
+  .work-menu .menu-action .ico { color: var(--accent); }
+
+  .crumb { color: var(--muted); }
+  .crumb b { color: var(--text); }
+  .progress {
+    flex: 1; height: 8px; background: var(--panel-2);
+    border-radius: 999px; overflow: hidden; position: relative;
+  }
+  .progress > i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 0%; transition: width .4s ease;
+  }
+  .progress-label { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 56px; text-align: right; }
+
+  /* ===== 主体 ===== */
+  main {
+    display: grid; grid-template-columns: 280px 1fr;
+    height: calc(100% - 56px - 32px);
+  }
+  aside.sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    overflow: auto;
+    padding: 12px 8px;
+    display: flex; flex-direction: column;
+  }
+  .side-title {
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 8px 10px;
+  }
+  #level-list { flex: 1; }
+  .level {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; margin: 2px 0;
+    border-radius: 8px; cursor: pointer;
+    color: var(--text);
+    border: 1px solid transparent;
+    transition: background .15s, border-color .15s;
+  }
+  .level:hover { background: var(--panel-2); }
+  .level.active { background: var(--panel-2); border-color: var(--accent); }
+  .level.locked { color: var(--locked); cursor: not-allowed; }
+  .level.locked:hover { background: transparent; }
+  .level.done .badge { background: var(--ok); color: #052e16; }
+  .level .badge {
+    width: 24px; height: 24px; border-radius: 6px;
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+    background: var(--panel-2); color: var(--muted);
+    border: 1px solid var(--line);
+  }
+  .level .meta { flex: 1; min-width: 0; }
+  .level .name { font-weight: 600; }
+  .level .sub { font-size: 12px; color: var(--muted); }
+  .level.boss { border-color: var(--gold); }
+  .level.boss .badge { background: var(--gold); color: #3a2a05; }
+
+  #level-footer { padding: 8px 4px 4px; border-top: 1px solid var(--line); margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .side-btn {
+    background: transparent; color: var(--muted);
+    border: 1px solid transparent; border-radius: 8px;
+    padding: 8px 12px; text-align: left; cursor: pointer; font: inherit;
+  }
+  .side-btn:hover { background: var(--panel-2); color: var(--text); }
+  .side-btn.danger:hover { color: var(--bad); border-color: var(--bad); }
+
+  /* ===== 主内容区 ===== */
+  section.workspace { display: flex; flex-direction: column; min-height: 0; }
+  .goal {
+    padding: 16px 24px;
+    background: linear-gradient(180deg, var(--panel-2), transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  .goal h2 { margin: 0 0 4px; font-size: 18px; }
+  .goal p { margin: 0; color: var(--muted); }
+  .goal .targets { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .goal .targets b { color: var(--text); }
+
+  .editor-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px 24px; gap: 12px; }
+  textarea#editor {
+    flex: 1; min-height: 240px; resize: none;
+    padding: 16px; border-radius: 10px;
+    background: #0b0d12; color: var(--text);
+    border: 1px solid var(--line);
+    font: 15px/1.75 "Source Han Serif", "Songti SC", "SimSun", serif;
+    outline: none;
+  }
+  textarea#editor:focus { border-color: var(--accent); }
+  textarea#editor[readonly] { opacity: .7; cursor: not-allowed; }
+
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; position: relative; }
+  .btn-group { position: relative; display: inline-flex; }
+  .btn-group .btn { border-radius: 0; }
+  .btn-group .btn:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+  .btn-group .btn:last-child  { border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-left: 0; }
+  .btn-group .btn-caret { padding: 8px 10px; }
+  .menu {
+    position: absolute; bottom: calc(100% + 6px); left: 0;
+    min-width: 200px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.4);
+    padding: 6px; display: none; z-index: 200;
+  }
+  .menu.open { display: block; }
+  .menu-item {
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+    color: var(--text); font-size: 13px;
+  }
+  .menu-item:hover { background: var(--panel); }
+
+
+  /* TODO */
+  .todo-stat { padding: 0 8px; border-radius: 4px; transition: background .15s; }
+  .todo-stat:hover { background: var(--panel-2); }
+  .todo-stat.has-todo { color: var(--warn); }
+  .todo-stat.has-todo b { color: var(--warn); }
+  .todo-panel {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+  }
+  .todo-head {
+    display: flex; align-items: center; padding: 6px 10px;
+    cursor: pointer; border-radius: 8px; user-select: none;
+  }
+  .todo-head:hover { background: var(--panel-2); }
+  .todo-title { flex: 1; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .todo-title b { color: var(--text); text-transform: none; letter-spacing: 0; }
+  .todo-toggle { color: var(--muted); font-size: 10px; transition: transform .2s; }
+  .todo-panel.collapsed .todo-toggle { transform: rotate(-90deg); }
+  .todo-panel.collapsed .todo-list { display: none; }
+  .todo-list { max-height: 240px; overflow-y: auto; padding: 0 4px 4px; }
+  .todo-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 10px; margin: 2px 0; border-radius: 8px;
+    background: rgba(245, 158, 11, .08); border: 1px solid rgba(245, 158, 11, .25);
+    cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  .todo-item:hover { background: rgba(245, 158, 11, .15); border-color: var(--warn); }
+  .todo-item.done { opacity: .45; background: var(--panel-2); border-color: var(--line); }
+  .todo-item.done .todo-text { text-decoration: line-through; }
+  .todo-check {
+    flex-shrink: 0; width: 16px; height: 16px;
+    border: 1.5px solid var(--warn); border-radius: 4px;
+    display: grid; place-items: center; margin-top: 2px;
+  }
+  .todo-item.done .todo-check { background: var(--ok); border-color: var(--ok); }
+  .todo-item.done .todo-check::after { content: "✓"; color: #052e16; font-size: 12px; font-weight: 700; }
+  .todo-body { flex: 1; min-width: 0; }
+  .todo-text { font-size: 12px; color: var(--text); word-break: break-all; }
+  .todo-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 56px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--accent); border-radius: 8px;
+    padding: 10px 16px; font-size: 13px;
+    opacity: 0; transition: opacity .2s, transform .2s;
+    pointer-events: none; z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--bad); }
+
+  /* Preview modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 9000;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    width: min(720px, 92vw); max-height: 86vh;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .modal-head h3 { margin: 0; font-size: 16px; }
+  .modal-head .tabs { display: flex; gap: 4px; }
+  .modal-head .tab {
+    padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    background: var(--panel-2); border: 1px solid var(--line); font-size: 12px;
+  }
+  .modal-head .tab.active { border-color: var(--accent); color: var(--accent); }
+  .modal-head .x { margin-left: auto; cursor: pointer; color: var(--muted); }
+  .modal-body { padding: 18px; overflow: auto; flex: 1; }
+  .modal-body .rendered {
+    background: #fff; color: #333; padding: 20px;
+    border-radius: 8px; line-height: 1.85; font-size: 15px;
+  }
+  .modal-body .rendered p { margin: 0 0 14px; }
+  .modal-body .rendered strong { color: #000; }
+  .modal-body .rendered h1 { font-size: 1.4em; margin: 18px 0 10px; }
+  .modal-body .rendered h2 { font-size: 1.2em; margin: 16px 0 8px; }
+  .modal-body .rendered blockquote {
+    border-left: 3px solid #ccc; padding-left: 12px; color: #666; margin: 10px 0;
+  }
+  .modal-body .rendered .todo { background: #fff3a0; padding: 0 4px; border-radius: 3px; }
+  .modal-body .raw {
+    background: #0b0d12; color: var(--text);
+    padding: 14px; border-radius: 8px;
+    font: 12px/1.6 ui-monospace, "Cascadia Code", monospace;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .modal-foot { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+  .modal-foot .spacer { flex: 1; }
+
+  button.btn {
+    padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line);
+    font: inherit;
+  }
+  button.btn:hover { border-color: var(--accent); }
+  button.btn.primary { background: var(--accent); color: #0b1424; border-color: transparent; font-weight: 700; }
+  button.btn.primary:hover { filter: brightness(1.05); }
+  button.btn.ghost { background: transparent; }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ===== 底部状态栏 ===== */
+  footer.statusbar {
+    height: 32px; display: flex; align-items: center; gap: 16px;
+    padding: 0 20px; background: var(--panel);
+    border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px;
+  }
+  .stat b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .storage { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .storage .bar { width: 140px; height: 6px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+  .storage .bar > i { display: block; height: 100%; background: var(--ok); width: 0%; }
+  .save-indicator { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .save-indicator .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .save-indicator.saving .dot { background: var(--muted); animation: spin 1s linear infinite; }
+  .save-indicator.error .dot { background: var(--bad); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 720px) {
+    main { grid-template-columns: 1fr; }
+    aside.sidebar { display: none; }
+    .work-switcher { max-width: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">小说闯关 <span class="dot">·</span> 作家工坊</div>
+  <div class="work-switcher" id="work-switcher" title="切换作品">
+    <span class="work-name">—</span>
+    <span class="caret">▾</span>
+  </div>
+  <div class="work-menu" id="work-menu">
+    <div id="work-list"></div>
+    <div class="divider"></div>
+    <div class="menu-action" id="btn-new-work"><span class="ico">＋</span> 新建作品</div>
+  </div>
+  <div class="crumb" id="crumb">当前关卡:<b id="crumb-name">—</b></div>
+  <div class="progress" title="整体进度"><i id="progress-bar"></i></div>
+  <div class="progress-label" id="progress-label">0%</div>
+</header>
+
+<main>
+  <aside class="sidebar" id="sidebar">
+    <div class="side-title">关卡</div>
+    <div id="level-list"></div>
+    <div id="todo-panel" class="todo-panel">
+      <div class="todo-head">
+        <span class="todo-title">📌 TODO(<b id="todo-side-count">0</b>)</span>
+        <span class="todo-toggle" id="todo-toggle">▾</span>
+      </div>
+      <div class="todo-list" id="todo-list"></div>
+    </div>
+    <div class="todo-panel" id="calendar-panel">
+      <div class="todo-head">
+        <span class="todo-title">📅 写作日历</span>
+        <span class="todo-toggle" id="calendar-toggle">▾</span>
+      </div>
+      <div class="todo-list" id="calendar-content">
+        <div id="calendar-heatmap" style="padding: 10px;"></div>
+      </div>
+    </div>
+    <div class="todo-panel" id="title-history-panel">
+      <div class="todo-head">
+        <span class="todo-title">📜 标题历史</span>
+        <span class="todo-toggle" id="title-history-toggle">▾</span>
+      </div>
+      <div class="todo-list" id="title-history-content">
+        <div class="title-empty">还没有标题历史记录</div>
+      </div>
+    </div>
+    <div id="level-footer"></div>
+  </aside>
+  
+  <!-- 日历详情弹窗 -->
+  <div class="modal-bg" id="calendar-modal-bg">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="calendar-modal-title">写作日历详情</h3>
+        <span class="x" id="calendar-modal-close">✕</span>
+      </div>
+      <div class="modal-body" id="calendar-modal-body">
+        <div id="calendar-detail-content"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" id="calendar-modal-ok">关闭</button>
+      </div>
+    </div>
+  </div>
+  </aside>
+
+  <section class="workspace">
+    <div class="goal">
+      <h2 id="goal-title">—</h2>
+      <p id="goal-desc">—</p>
+      <div class="targets" id="goal-targets"></div>
+    </div>
+    
+    <div class="write-feedback" id="write-feedback">
+      <div class="feedback-section">
+        <div class="feedback-item">
+          <span class="feedback-icon">📊</span>
+          <span class="feedback-text" id="word-progress">当前进度: 0 / 200字</span>
+        </div>
+        <div class="feedback-item">
+          <span class="feedback-icon">💡</span>
+          <span class="feedback-text" id="inspiration-hint" onclick="if (window.__NQ__ && window.__NQ__.inspireHint) window.__NQ__.inspireHint()">点击💡获取灵感提示</span>
+        </div>
+        <div class="feedback-item">
+          <span class="feedback-icon">📝</span>
+          <span class="feedback-text" id="title-hint">点击📝生成公众号标题</span>
+        </div>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+        <span class="progress-percentage" id="progress-percent">0%</span>
+      </div>
+    </div>
+
+    <div class="editor-wrap">
+      <textarea id="editor" placeholder="开始你的创作…"></textarea>
+      <div class="actions">
+        <button class="btn" id="btn-ai" title="AI 生成(mock)">✨ AI 生成</button>
+        <button class="btn ghost" id="btn-inspire" title="获取灵感提示">💡 灵感</button>
+        <button class="btn primary" id="btn-submit" title="提交并解锁下一关">✅ 提交并通关</button>
+        <div class="btn-group">
+          <button class="btn" id="btn-copy" title="复制为公众号格式">📋 复制公众号格式</button>
+          <button class="btn btn-caret" id="btn-copy-more" title="更多复制选项">▾</button>
+          <div class="menu" id="copy-menu">
+            <div class="menu-item" data-copy="current">📄 复制当前章节</div>
+            <div class="menu-item" data-copy="all">📚 复制整部作品</div>
+            <div class="menu-item" data-copy="preview">👁 预览 HTML</div>
+            <div class="menu-item" data-copy="copy-html">🔖 复制 HTML 源码</div>
+          </div>
+        </div>
+        <span style="flex:1"></span>
+        <button class="btn ghost" id="btn-reset" title="重置当前作品全部进度">↺ 重置当前作品</button>
+      </div>
+    </div>
+  </section>
+  
+  <!-- 公众号标题生成弹窗 -->
+  <div class="modal-bg" id="title-modal-bg">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>公众号标题生成</h3>
+        <span class="x" id="title-modal-close">✕</span>
+      </div>
+      <div class="modal-body">
+        <div id="title-content"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn primary" id="title-modal-copy">📋 复制到剪贴板</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="title-modal-ok">关闭</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="statusbar">
+  <div class="stat">当前章节字数:<b id="word-count">0</b></div>
+  <div class="stat">累计字数:<b id="total-words">0</b></div>
+  <div class="stat">总关卡数:<b id="level-total">0</b></div>
+  <div class="stat todo-stat" id="todo-stat" title="点击查看所有 TODO" style="cursor:pointer">
+    <span id="todo-text">TODO</span>
+    <b id="todo-count">0</b>
+  </div>
+  <div class="save-indicator" id="save-indicator"><span class="dot"></span><span id="save-text">已保存</span></div>
+  <div class="storage" title="localStorage 用量">
+    <span>存储</span>
+    <div class="bar"><i id="storage-bar"></i></div>
+    <span id="storage-text">0 KB / 0 MB</span>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">预览</h3>
+      <div class="tabs">
+        <div class="tab active" data-tab="rendered">渲染效果</div>
+        <div class="tab" data-tab="raw">HTML 源码</div>
+      </div>
+      <span class="x" id="modal-close">✕</span>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button class="btn primary" id="modal-copy">📋 复制到剪贴板</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="modal-ok">关闭</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+
+
