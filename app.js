@@ -1209,55 +1209,31 @@
     return out;
   }
 
-  // 智能改写(调 API) — 3轮不同维度改写 + 随机化后处理 + 去重
+  // 智能改写(调 API) — 三轮降重协议 + 随机化后处理
   async function dedaiAI(text) {
     if (!text) return text;
     if (!hasApiKey()) {
       showApiSettings();
       return '⚠️ 请先配置 API Key';
     }
+    // 使用三轮降重协议(参考 aigc-reduce)
+    return await threeRoundProtocol(text);
+  }
 
-    // 第一轮:困惑度打散 — 用不常见的词替换高概率词
-    const p1 = '你是网文老手。改写规则:\n' +
-      '1. 把所有"高级词汇"替换成"日常口语词":例如"凝聚"→"攒","闪烁"→"一亮一亮的","弥漫"→"到处都是"\n' +
-      '2. 用方言/俚语替换书面语:例如"感到"→"觉着","立刻"→"马上的事","非常"→"贼/特/巨"\n' +
-      '3. 句子别太完整,偶尔省略主语或宾语:例如"他走进房间"→"走进来了,房间里"\n' +
-      '4. 加入2-3处具体数字/细节:例如"走了很久"→"走了少说有二十分钟"\n' +
-      '5. 禁止使用:仿佛/宛如/犹如/似乎/值得注意的是/综上所述/与此同时/总的来说\n' +
-      '6. 直接输出改写内容,不加说明';
-    const r1 = await callAI(p1, 'rewrite');
-    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
+  // 翻译链降AI(调 API)
+  async function dedaiTranslate(text) {
+    if (!text) return text;
+    if (!hasApiKey()) {
+      showApiSettings();
+      return '⚠️ 请先配置 API Key';
+    }
+    return await translationChain(text);
+  }
 
-    // 第二轮:语义结构打乱 — 打破"总分总"模式
-    const p2 = '你是网文老手。对以下段落做结构调整:\n' +
-      '1. 打乱段落顺序:把结果/结论提前,把背景/铺垫放到后面\n' +
-      '2. 每段开头不能都是"我/他/她/这/那",要用动作/对话/环境/声音开头\n' +
-      '3. 在任意两段之间插入一段内心独白(1-2句,口语化)\n' +
-      '4. 把至少2处陈述句改成反问句或设问句\n' +
-      '5. 段落长度要参差不齐:有的1句就完,有的5-6句\n' +
-      '6. 直接输出调整后的内容,不加说明';
-    const r2 = await callAI(p2, 'rewrite');
-    if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
-
-    // 第三轮:风格注入 — 让文字有"人味儿"
-    const p3 = '你是网文老手。给以下文字注入个人风格:\n' +
-      '1. 加入你的口头禅或语气词:比如"说真的"/"你猜怎么着"/"我跟你说"\n' +
-      '2. 加入1-2处自嘲或吐槽:比如"我也挺无语的"/"就离谱"\n' +
-      '3. 偶尔用网络用语:比如"破防了"/"蚌埠住了"/"真下头"\n' +
-      '4. 加入身体感觉:比如"后背一凉"/"手心出汗"/"嗓子发紧"\n' +
-      '5. 保持原文情节不变,只改表达方式\n' +
-      '6. 直接输出改写内容,不加说明';
-    const r3 = await callAI(p3, 'rewrite');
-    if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
-
-    // 去重:如果结果中有连续重复段落,去掉重复部分
-    let result = r3;
-    result = deduplicateText(result);
-    // 第四轮:随机化后处理(本地,无需API)
-    result = postProcessText(result);
-    result = splitLongSentences(result);
-    result = randomScramble(result);
-    return result;
+  // 深度本地降重(无需API,参考 qu-ai-wei 51条规则)
+  function dedaiDeepLocal(text) {
+    if (!text) return text;
+    return deepLocalDedai(text);
   }
 
   // 去除连续重复的段落/句子
@@ -1304,6 +1280,172 @@
     return await callAI(prompt, 'polish');
   }
 
+  // ===== 翻译链降AI(参考 lynote-ai/humanize-text) =====
+  // 核心原理:跨语言翻译破坏token分布,让统计特征偏离AI模式
+  async function translationChain(text) {
+    if (!text) return text;
+    if (!hasApiKey()) {
+      showApiSettings();
+      return '⚠️ 请先配置 API Key';
+    }
+
+    // 第1步:中文→日语(DeepSeek翻译,注入日语表达习惯)
+    const p1 = '你是专业翻译。把以下中文翻译成日语,保留原文情感和细节,直接输出日语译文:\n\n' + text;
+    const r1 = await callAI(p1, 'polish');
+    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
+
+    // 第2步:日语→中文(用不同表达习惯翻译回来)
+    const p2 = '你是专业翻译。把以下日语翻译成中文,但要用完全不同的表达方式,不要直译,要意译,用口语化的中文:\n\n' + r1;
+    const r2 = await callAI(p2, 'polish');
+    if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
+
+    // 第3步:后处理
+    let result = r2;
+    result = deduplicateText(result);
+    result = postProcessText(result);
+    result = splitLongSentences(result);
+    return result;
+  }
+
+  // ===== 三轮降重协议(参考 xiaofenggan01/aigc-reduce) =====
+  // 第一轮:去痕迹(减法) → 第二轮:注入人味(加法) → 第三轮:自检审计
+  async function threeRoundProtocol(text) {
+    if (!text) return text;
+    if (!hasApiKey()) {
+      showApiSettings();
+      return '⚠️ 请先配置 API Key';
+    }
+
+    // 第一轮:去AI痕迹(词级+句级+段落级,修改率>40%)
+    const p1 = '你是专业降重助手。执行第一轮"去痕迹"改写:\n\n' +
+      '【词级替换(10-15%)】\n' +
+      '- 模板词替换:值得注意的是→删掉,不得不说→删掉,综上所述→删掉\n' +
+      '- 72个中文AI高频词全部替换:\n' +
+      '  深入→扎进去, 领域→地盘, 赋能→帮忙, 聚焦→盯住, 打造→搞, \n' +
+      '  优化→改好, 提升→拉高, 增强→加码, 完善→补全, 推动→推一把,\n' +
+      '  发展→往前走, 创新→玩新花样, 突破→打破, 引领→带路, \n' +
+      '  核心→最关键的, 关键→要命的, 重要→顶要紧的, \n' +
+      '  基础→底子, 框架→架子, 模式→套路, 体系→一整套,\n' +
+      '  构建→搭, 建立→立起来, 实现→搞成, 达到→够着, \n' +
+      '  通过→靠着, 利用→用上, 依托→靠着, 基于→打底是\n\n' +
+      '【句级重构(15-20%)】\n' +
+      '- 语序重组:主语后置/前置,长句拆短,被动改主动\n' +
+      '- 例如:"这个方案被大家认可"→"大伙儿都觉得这方案成"\n' +
+      '- 例如:"通过不断努力取得了成果"→"折腾了一通,总算搞成了"\n\n' +
+      '【段落级调整(10-15%)】\n' +
+      '- 打破对称段长:连续3段长度相近时,故意扩写/精简\n' +
+      '- 加入段落间过渡:每段结尾加引导\n\n' +
+      '保持原文情节不变,直接输出改写内容:\n\n' + text;
+    const r1 = await callAI(p1, 'rewrite');
+    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
+
+    // 第二轮:注入人类特征(加法)
+    const p2 = '你是网文老手。给以下文字注入"人味儿":\n\n' +
+      '1. 加入作者判断:"说实话我觉得""这事儿挺扯的""按我的经验"\n' +
+      '2. 嵌入具体细节:数字/时间/地点/感官(汗水/疼/温度/气味)\n' +
+      '3. 加入内心独白:"我当时就想""后来想想""现在回头看"\n' +
+      '4. 偶尔用反问/设问:"这谁能想到?""你说气不气人?"\n' +
+      '5. 加入1-2处口语化表达/口头禅:"说真的""你猜怎么着"\n' +
+      '6. 段落长度不均匀:有的1句,有的5-6句\n' +
+      '7. 保持原文情节不变\n\n' +
+      '直接输出改写内容:\n\n' + r1;
+    const r2 = await callAI(p2, 'rewrite');
+    if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
+
+    // 第三轮:自检审计(AI自己检查)
+    const p3 = '你是AI检测专家。审视以下文本,找出还像AI写的痕迹并修改:\n\n' +
+      '检查项:\n' +
+      '1. 重要性膨胀:有没有"至关重要""不可或缺"等词?→换成大白话\n' +
+      '2. 同义词轮换:同一概念是否被换了3个以上名字?→统一用1个\n' +
+      '3. 三板斧强迫症:有没有"A、B和C"三件套?→拆开写\n' +
+      '4. 系词回避:有没有用"作为...的体现/代表"绕弯子?→直接说\n' +
+      '5. 假大空结论:有没有"具有良好的应用前景"?→删掉或具体化\n' +
+      '6. 段落对称:连续段落长度是否太接近?→参差不齐\n' +
+      '7. 套话残留:还有没有"值得注意/不得不说/综上"?→全删\n' +
+      '8. 被动语态:有没有大量"被...所..."?→改主动\n' +
+      '9. 缺对话:全篇没一句对话?→加1-2句\n' +
+      '10. 缺碎片句:全是完整长句?→加几个3-8字的短句\n\n' +
+      '直接输出修改后的文本:\n\n' + r2;
+    const r3 = await callAI(p3, 'rewrite');
+    if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
+
+    // 最终后处理
+    let result = r3;
+    result = deduplicateText(result);
+    result = postProcessText(result);
+    result = splitLongSentences(result);
+    result = randomScramble(result);
+    return result;
+  }
+
+  // ===== 深度本地降重(参考 qu-ai-wei 51条规则) =====
+  // 不需要API,纯本地规则引擎
+  function deepLocalDedai(text) {
+    if (!text) return text;
+    let out = text;
+
+    // 第1轮:AI高频词替换(扩充版)
+    const HEAVY_SWAPS = [
+      [/[深入]+/g, '扎进去'],
+      [/[领域]+/g, '地盘'],
+      [/[赋能]+/g, '帮忙'],
+      [/[聚焦]+/g, '盯住'],
+      [/[打造]+/g, '搞'],
+      [/[优化]+/g, '改好'],
+      [/[提升]+/g, '拉高'],
+      [/[增强]+/g, '加码'],
+      [/[完善]+/g, '补全'],
+      [/[推动]+/g, '推一把'],
+      [/[发展]+/g, '往前走'],
+      [/[创新]+/g, '玩新花样'],
+      [/[突破]+/g, '打破'],
+      [/[引领]+/g, '带路'],
+      [/[核心]+/g, '最关键的'],
+      [/[关键]+/g, '要命的'],
+      [/[重要]+/g, '顶要紧的'],
+      [/[基础]+/g, '底子'],
+      [/[框架]+/g, '架子'],
+      [/[模式]+/g, '套路'],
+      [/[体系]+/g, '一整套'],
+      [/[构建]+/g, '搭'],
+      [/[建立]+/g, '立起来'],
+      [/[实现]+/g, '搞成'],
+      [/[达到]+/g, '够着'],
+      [/[通过]+/g, '靠着'],
+      [/[利用]+/g, '用上'],
+      [/[依托]+/g, '靠着'],
+      [/[基于]+/g, '打底是'],
+      [/[有效]+/g, '管用'],
+      [/[显著]+/g, '明显'],
+      [/[持续]+/g, '一直'],
+      [/[进一步]+/g, '再'],
+      [/[不断]+/g, '不停地'],
+      [/[有效]+/g, '管用'],
+      [/[高度重视]+/g, '特别看重'],
+      [/[广泛关注]+/g, '大家都在看'],
+      [/[具有重要意义]+/g, '挺重要的'],
+      [/[发挥重要作用]+/g, '帮了大忙'],
+      [/[产生深远影响]+/g, '影响挺大'],
+    ];
+    HEAVY_SWAPS.forEach(([re, rep]) => { out = out.replace(re, rep); });
+
+    // 第2轮:句式打散
+    out = scrambleSentenceStarts(out);
+    out = scrambleParagraphs(out);
+
+    // 第3轮:注入口语化元素
+    out = injectColloquial(out);
+    out = injectFragments(out);
+
+    // 第4轮:随机化
+    out = randomScramble(out);
+
+    // 第5轮:清理
+    out = postProcessText(out);
+    out = splitLongSentences(out);
+    return out;
+  }
+
   // 应用改写到当前关卡
   async function applyDedai(replaceAll) {
     const lvl = currentLevel();
@@ -1342,7 +1484,7 @@
 
   // 除 AI 味 弹窗控制
   const dedaiState = {
-    mode: 'local',  // local | ai | detect
+    mode: 'local',  // local | deep-local | ai | translate | detect
     original: '',
     rewritten: '',
     level: null,
@@ -1430,7 +1572,7 @@
     const text = dedaiState.original;
     const afterTa = document.getElementById('dedai-text-after');
     const goBtn = document.getElementById('dedai-go');
-    if (dedaiState.mode === 'ai' && !hasApiKey()) {
+    if ((dedaiState.mode === 'ai' || dedaiState.mode === 'translate') && !hasApiKey()) {
       showApiSettings();
       return;
     }
@@ -1439,8 +1581,12 @@
       let result;
       if (dedaiState.mode === 'local') {
         result = dedaiLocal(text);
-      } else {
+      } else if (dedaiState.mode === 'deep-local') {
+        result = dedaiDeepLocal(text);
+      } else if (dedaiState.mode === 'ai') {
         result = await dedaiAI(text);
+      } else if (dedaiState.mode === 'translate') {
+        result = await dedaiTranslate(text);
       }
       if (!result || result.startsWith('⚠️') || result.startsWith('❌')) {
         toastKind(result || '改写失败', 'bad');
