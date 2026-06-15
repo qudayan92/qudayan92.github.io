@@ -880,25 +880,31 @@
     });
     
     // 标题生成按钮事件
-    document.getElementById('btn-generate-title').addEventListener('click', () => {
-      const currentContent = getCurrentText();
-      if (!currentContent) {
-        toast('当前章节没有内容', true);
-        return;
-      }
-      
-      if (!validateContentForTitleGeneration(currentContent)) {
-        return;
-      }
-      
-      const titles = generateAllTitles(currentContent);
-      showTitlePanel(titles);
-    });
+    const titleHintEl = document.getElementById('title-hint');
+    if (titleHintEl) {
+      titleHintEl.addEventListener('click', () => {
+        const currentContent = getCurrentText();
+        if (!currentContent) {
+          toast('当前章节没有内容', true);
+          return;
+        }
+        
+        if (!validateContentForTitleGeneration(currentContent)) {
+          return;
+        }
+        
+        const titles = generateAllTitles(currentContent);
+        showTitlePanel(titles);
+      });
+    }
     
     // 标题历史按钮事件
-    document.getElementById('btn-title-history').addEventListener('click', () => {
-      showTitleHistory(state.activeWorkId);
-    });
+    const titleHistoryBtn = document.getElementById('btn-title-history');
+    if (titleHistoryBtn) {
+      titleHistoryBtn.addEventListener('click', () => {
+        showTitleHistory(state.activeWorkId);
+      });
+    }
     
     // 标题策略菜单事件
     document.querySelectorAll('#title-menu .menu-item').forEach(item => {
