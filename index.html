@@ -484,6 +484,122 @@
     color: var(--accent);
   }
 
+  /* ===== 9. 除 AI 味 ===== */
+  .dedai-modes {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .dedai-modes button {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: left;
+  }
+  .dedai-modes button:hover {
+    border-color: var(--accent);
+  }
+  .dedai-modes button.active {
+    border-color: var(--gold);
+    background: rgba(245, 196, 81, .08);
+  }
+  .dedai-modes button .name {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .dedai-modes button .desc {
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+    line-height: 1.4;
+  }
+  .ai-meter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .ai-meter-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .ai-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ok) 0%, var(--warn) 50%, var(--bad) 100%);
+    border-radius: 999px;
+    transition: width .3s;
+  }
+  .ai-meter-label {
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 60px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-meter-score {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    min-width: 36px;
+  }
+  .dedai-signals {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dedai-signals b { color: var(--text); }
+  .dedai-signals ul { margin: 4px 0 0; padding-left: 18px; }
+  .dedai-signals li { margin: 2px 0; }
+  .dedai-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .dedai-compare .col {
+    display: flex;
+    flex-direction: column;
+  }
+  .dedai-compare .col h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .dedai-compare textarea {
+    min-height: 200px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.7;
+    resize: vertical;
+    font-family: inherit;
+  }
+  .dedai-compare .col.before textarea { border-color: rgba(245, 196, 81, .4); }
+  .dedai-compare .col.after textarea { border-color: rgba(74, 222, 128, .4); }
+
   #level-footer { padding: 8px 4px 4px; border-top: 1px solid var(--line); margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .side-btn {
     background: transparent; color: var(--muted);
@@ -1025,6 +1141,8 @@
       <div class="actions">
         <button class="btn" id="btn-ai" title="AI 生成(mock)">✨ AI 生成</button>
         <button class="btn ghost" id="btn-inspire" title="获取灵感提示">💡 灵感</button>
+        <button class="btn" id="btn-dedai" title="除 AI 味 · 祛除 AI 痕迹" style="border-color:var(--gold);color:var(--gold);">🪄 除 AI 味</button>
+        <button class="btn ghost" id="btn-detect" title="AI 味检测 · 看像不像真人写的">📊 检测</button>
         <button class="btn primary" id="btn-submit" title="提交并解锁下一关">✅ 提交并通关</button>
         <div class="btn-group">
           <button class="btn" id="btn-copy" title="复制为公众号格式">📋 复制公众号格式</button>
@@ -1200,6 +1318,60 @@
       <button class="btn" id="reader-export">📤 导出公众号 HTML</button>
       <span class="spacer"></span>
       <button class="btn ghost" id="reader-modal-ok">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 9. 除 AI 味 弹窗 -->
+<div class="modal-bg" id="dedai-modal-bg">
+  <div class="modal" style="max-width:820px;max-height:90vh;">
+    <div class="modal-head">
+      <h3>🪄 除 AI 味</h3>
+      <span class="x" id="dedai-modal-close">✕</span>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <div class="ai-meter">
+        <span style="font-size:12px;color:var(--muted);">AI 味指数</span>
+        <div class="ai-meter-bar"><div class="ai-meter-fill" id="dedai-meter-fill" style="width:0%"></div></div>
+        <span class="ai-meter-score" id="dedai-meter-score">0</span>
+        <span class="ai-meter-label" id="dedai-meter-label">/ 100</span>
+      </div>
+
+      <div class="dedai-modes">
+        <button class="active" data-mode="local">
+          <span class="name">⚡ 本地快速清洗</span>
+          <span class="desc">替换 AI 套话、拆长句。无需 API,即点即得。</span>
+        </button>
+        <button data-mode="ai">
+          <span class="name">🧠 AI 智能改写</span>
+          <span class="desc">让 DeepSeek 重新组织文风,更像真人。需 API Key。</span>
+        </button>
+        <button data-mode="detect">
+          <span class="name">📊 仅检测不改写</span>
+          <span class="desc">看 AI 味分数和具体信号,自己手动改。</span>
+        </button>
+      </div>
+
+      <div class="dedai-compare" id="dedai-compare" style="display:none;">
+        <div class="col before">
+          <h4>原文</h4>
+          <textarea id="dedai-text-before" readonly></textarea>
+        </div>
+        <div class="col after">
+          <h4>改写后</h4>
+          <textarea id="dedai-text-after" readonly placeholder="点击「开始改写」生成..."></textarea>
+        </div>
+      </div>
+
+      <div class="dedai-signals" id="dedai-signals" style="display:none;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="dedai-detect-btn">📊 仅检测</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="dedai-cancel">取消</button>
+      <button class="btn" id="dedai-revert" style="display:none;">↶ 还原</button>
+      <button class="btn primary" id="dedai-apply" style="display:none;">✓ 应用到编辑器</button>
+      <button class="btn primary" id="dedai-go">🪄 开始改写</button>
     </div>
   </div>
 </div>

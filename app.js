@@ -696,13 +696,32 @@
   }
 
   // ===== AI 续写 (DeepSeek API) =====
-  async function callAI(prompt) {
+  async function callAI(prompt, mode) {
     const apiKey = getApiKey();
     if (!apiKey) {
       return '⚠️ 未配置 API Key，请先点击右上角 ⚙️ 设置 DeepSeek API Key。';
     }
 
-    const systemPrompt = '你是一位才华横溢的中文小说家。根据用户提供的上下文，续写一段精彩的、符合故事逻辑的文字。保持原文的风格和语调，续写300-500字左右。直接输出续写内容，不要加任何前缀说明。';
+    let systemPrompt;
+    if (mode === 'rewrite') {
+      systemPrompt = '你是一位擅长"祛除 AI 味"的中文小说编辑。你的任务是把用户提供的文字改写得更像真人手写。\n\n' +
+        '硬性规则：\n' +
+        '1. 删除一切"AI 标志性表达":值得注意的是 / 不得不说 / 令人惊讶的是 / 总的来说 / 综上所述 / 在当今社会 / 与此同时 / 不仅……而且…… / 既……又……\n' +
+        '2. 修辞词降级:把"仿佛""宛如""犹如"等高频比喻换成更具体的感官细节\n' +
+        '3. 句长多变:连续三句不能同长度,要长短交错\n' +
+        '4. 段落开头不能都是"我/他/她"或名词开头,要有动作/环境/对话\n' +
+        '5. 保留原文情节和人物关系,只改文风不改故事\n' +
+        '6. 适度加入口语化连接词:其实 / 说到底 / 倒也 / 偏偏 / 索性 / 罢了\n' +
+        '7. 不要使用项目符号或列表,直接输出连续段落\n' +
+        '8. 字数与原文相当(±20%)';
+    } else {
+      systemPrompt = '你是一位才华横溢的中文小说家。续写规则:\n' +
+        '1. 像真人作家一样写作,不用"值得注意的是"等 AI 套话\n' +
+        '2. 句长要长短交错,避免三句同长度\n' +
+        '3. 善用动作、对话、环境细节,少用抽象形容\n' +
+        '4. 保持原文的风格和语调,续写300-500字左右。\n' +
+        '5. 直接输出续写内容,不要加任何前缀说明。';
+    }
 
     try {
       const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -717,7 +736,7 @@
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
-          temperature: 0.8,
+          temperature: mode === 'rewrite' ? 0.95 : 0.8,
           max_tokens: 1024,
         }),
       });
@@ -733,6 +752,366 @@
     } catch (e) {
       return '❌ 网络请求失败: ' + (e.message || e);
     }
+  }
+
+  // ===== 9. 除 AI 味 / 降重模块 =====
+  // 三层降 AI 味策略:本地后处理(无需 API) + AI 智能改写 + 本地启发式检测
+  const AI_TICKS = [
+    '值得注意的是', '不得不说', '令人惊讶的是', '令人深思', '让人不禁',
+    '总的来说', '综上所述', '在当今社会', '在这个时代', '众所周知',
+    '不仅如此', '不仅...而且', '既...又', '与此同时', '然而',
+    '不仅...更', '毋庸置疑', '无可否认', '某种意义上', '从某种程度上',
+    '不禁让人', '不禁感叹', '不禁想问', '作为一个', '身为一个',
+    '归根结底', '一言以蔽之', '由此可见', '这表明', '这也意味着',
+    '仿佛', '宛如', '犹如', '似乎', '好似', '俨然',
+  ];
+
+  const AI_REPLACEMENTS = [
+    [/值得注意的是[，,]?/g, ''],
+    [/不得不[说说][，,]?/g, ''],
+    [/令人惊讶的是[，,]?/g, ''],
+    [/令人深思的是[，,]?/g, ''],
+    [/让人不禁[^,。]*[，,]/g, ''],
+    [/总的来说[，,]?/g, '说到底,'],
+    [/综上所述[，,]?/g, ''],
+    [/在当今社会[，,]?/g, '如今,'],
+    [/众所周知[，,]?/g, ''],
+    [/不仅如此[，,]?/g, '还有,'],
+    [/与此同时[，,]?/g, '恰在此时,'],
+    [/毋庸置疑[，,]?/g, ''],
+    [/无可否认[，,]?/g, ''],
+    [/某种意义上[，,]?/g, ''],
+    [/从某种程度上[来说]?[，,]?/g, ''],
+    [/不禁让人[^,。]*[，,]/g, ''],
+    [/不禁感叹[^,。]*[，,]/g, ''],
+    [/归根结底[，,]?/g, '说穿了,'],
+    [/一言以蔽之[，,]?/g, ''],
+    [/由此可见[，,]?/g, '看得出,'],
+    [/这表明[，,]?/g, '这说明,'],
+    [/这也意味着[，,]?/g, '换句话说,'],
+    [/仿佛/g, '像是'],
+    [/宛如/g, '像'],
+    [/犹如/g, '像'],
+    [/似乎/g, '好像'],
+    [/好似/g, '像'],
+  ];
+
+  function postProcessText(text) {
+    if (!text) return text;
+    let out = text;
+    AI_REPLACEMENTS.forEach(([re, rep]) => {
+      out = out.replace(re, rep);
+    });
+    out = out
+      .replace(/^[\s,。、]+/gm, '')
+      .replace(/[,，]{2,}/g, '，')
+      .replace(/[ ]{2,}/g, ' ')
+      .replace(/^[,，\s]+/gm, '');
+    return out;
+  }
+
+  // 长句拆短:超过 60 字的句子,按";"或"、",""等拆成两句
+  function splitLongSentences(text) {
+    if (!text) return text;
+    const sentences = text.split(/([。!?])/);
+    const out = [];
+    for (let i = 0; i < sentences.length; i += 2) {
+      const s = (sentences[i] || '').trim();
+      const end = sentences[i + 1] || '';
+      if (s.length > 60) {
+        const parts = s.split(/([;,，；、])/);
+        let buf = '';
+        parts.forEach(p => {
+          buf += p;
+          if (buf.length > 30 && /[,，；;、]/.test(p)) {
+            out.push(buf.trim());
+            buf = '';
+          }
+        });
+        if (buf.trim()) out.push(buf.trim());
+        if (end) out[out.length - 1] += end;
+      } else {
+        if (s) out.push(s + end);
+      }
+    }
+    return out.join('');
+  }
+
+  // 检测 AI 味:返回 0-100 分(越高越像 AI)
+  function detectAiFlavor(text) {
+    if (!text || text.length < 30) return { score: 0, signals: [] };
+    const signals = [];
+    let score = 0;
+
+    // 1. AI 套话命中
+    let hitCount = 0;
+    AI_TICKS.forEach(t => { if (text.indexOf(t) >= 0) hitCount++; });
+    if (hitCount > 0) {
+      score += Math.min(40, hitCount * 12);
+      signals.push('AI 套话 ×' + hitCount);
+    }
+
+    // 2. 句长方差过低(AI 写得句长很均匀)
+    const sentences = text.split(/[。!?]/).filter(s => s.trim().length > 4);
+    if (sentences.length >= 5) {
+      const lens = sentences.map(s => s.length);
+      const avg = lens.reduce((a, b) => a + b, 0) / lens.length;
+      const variance = lens.reduce((s, l) => s + Math.pow(l - avg, 2), 0) / lens.length;
+      const stddev = Math.sqrt(variance);
+      const cv = stddev / avg; // 变异系数
+      if (cv < 0.25) {
+        score += 20;
+        signals.push('句长过于均匀(cv=' + cv.toFixed(2) + ')');
+      }
+    }
+
+    // 3. 连续 3 句以相同词结尾(主语重复)
+    if (sentences.length >= 3) {
+      const ends = sentences.slice(0, -1).map(s => {
+        const m = s.trim().match(/([^\s,，。;；]+)$/);
+        return m ? m[1] : '';
+      });
+      let sameEnd = 1, maxSame = 1;
+      for (let i = 1; i < ends.length; i++) {
+        if (ends[i] && ends[i] === ends[i - 1]) {
+          sameEnd++;
+          maxSame = Math.max(maxSame, sameEnd);
+        } else sameEnd = 1;
+      }
+      if (maxSame >= 3) {
+        score += 15;
+        signals.push('连续 ' + maxEndOrVar(maxSame) + ' 句同结尾');
+      }
+    }
+
+    // 4. "首先/其次/再次/最后" 模式
+    if (/(首先|第一)[,，][^\n]*?\n.*?(其次|第二|然后)[,，]/s.test(text)) {
+      score += 10;
+      signals.push('罗列式连接词');
+    }
+
+    // 5. 感叹号/问号过少(AI 几乎不用)
+    const exclaims = (text.match(/[!！?？]/g) || []).length;
+    if (exclaims === 0 && text.length > 200) {
+      score += 5;
+      signals.push('缺感叹/问号');
+    }
+
+    // 6. 高频比喻词
+    const metaphorCount = (text.match(/仿佛|宛如|犹如|似乎/g) || []).length;
+    if (metaphorCount > 3) {
+      score += Math.min(15, metaphorCount * 3);
+      signals.push('比喻词 ×' + metaphorCount);
+    }
+
+    return { score: Math.min(100, score), signals };
+  }
+
+  function maxEndOrVar(n) { return n; }
+
+  // 一键除 AI 味(纯本地,无需 API)
+  function dedaiLocal(text) {
+    if (!text) return text;
+    let out = text;
+    out = postProcessText(out);
+    out = splitLongSentences(out);
+    return out;
+  }
+
+  // 智能改写(调 API)
+  async function dedaiAI(text) {
+    if (!text) return text;
+    if (!hasApiKey()) {
+      showApiSettings();
+      return '⚠️ 请先配置 API Key';
+    }
+    const prompt = '请将以下文字改写得更像真人手写(祛除 AI 味):\n\n"""\n' + text + '\n"""';
+    return await callAI(prompt, 'rewrite');
+  }
+
+  // 应用改写到当前关卡
+  async function applyDedai(replaceAll) {
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    if (!st || !st.content) {
+      toastKind('当前章节没有内容', 'warn');
+      return;
+    }
+    const before = detectAiFlavor(st.content);
+    const after = await dedaiAI(st.content);
+    if (after && !after.startsWith('⚠️') && !after.startsWith('❌')) {
+      st.content = after;
+      const ta = document.getElementById('editor');
+      if (ta) ta.value = after;
+      ta.dispatchEvent(new Event('input'));
+      const newScore = detectAiFlavor(after);
+      toastKind('已改写 · AI 味分: ' + before.score + ' → ' + newScore.score, 'ok');
+    } else {
+      toastKind(after || '改写失败', 'bad');
+    }
+  }
+
+  // 显示检测结果
+  function showDetectResult() {
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    if (!st || !st.content) {
+      toastKind('当前章节没有内容', 'warn');
+      return;
+    }
+    const r = detectAiFlavor(st.content);
+    const level = r.score >= 60 ? '🔴 强 AI 味' : r.score >= 30 ? '🟡 中度 AI 味' : '🟢 较自然';
+    const signal = r.signals.length ? '\n\n发现:\n• ' + r.signals.join('\n• ') : '\n\n没有发现明显 AI 味信号';
+    alert('📊 AI 味检测\n\n分数: ' + r.score + ' / 100\n' + level + signal);
+  }
+
+  // 除 AI 味 弹窗控制
+  const dedaiState = {
+    mode: 'local',  // local | ai | detect
+    original: '',
+    rewritten: '',
+    level: null,
+  };
+
+  function showDedai() {
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    if (!st || !st.content || st.content.trim().length < 10) {
+      toastKind('当前章节内容太少(至少 10 字)', 'warn');
+      return;
+    }
+    dedaiState.original = st.content;
+    dedaiState.rewritten = '';
+    dedaiState.level = lvl.id;
+    document.getElementById('dedai-text-before').value = st.content;
+    document.getElementById('dedai-text-after').value = '';
+    const before = detectAiFlavor(st.content);
+    updateDedaiMeter(before.score);
+    renderDedaiSignals(before);
+    document.getElementById('dedai-compare').style.display = 'grid';
+    document.getElementById('dedai-signals').style.display = 'block';
+    updateDedaiButtons();
+    document.getElementById('dedai-modal-bg').classList.add('open');
+  }
+
+  function hideDedai() {
+    const modal = document.getElementById('dedai-modal-bg');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function updateDedaiMeter(score) {
+    const fill = document.getElementById('dedai-meter-fill');
+    const scoreEl = document.getElementById('dedai-meter-score');
+    if (fill) fill.style.width = Math.min(100, score) + '%';
+    if (scoreEl) {
+      scoreEl.textContent = score;
+      scoreEl.style.color = score >= 60 ? 'var(--bad)' : score >= 30 ? 'var(--gold)' : 'var(--ok)';
+    }
+  }
+
+  function renderDedaiSignals(r) {
+    const box = document.getElementById('dedai-signals');
+    if (!box) return;
+    const level = r.score >= 60 ? '🔴 强 AI 味' : r.score >= 30 ? '🟡 中度 AI 味' : '🟢 较自然';
+    let html = '<b>' + level + '</b>';
+    if (r.signals.length) {
+      html += '<ul>';
+      r.signals.forEach(s => { html += '<li>' + escapeHtml(s) + '</li>'; });
+      html += '</ul>';
+    } else {
+      html += '<div style="margin-top:4px;">没有发现明显 AI 味信号</div>';
+    }
+    box.innerHTML = html;
+  }
+
+  function updateDedaiButtons() {
+    const isDetect = dedaiState.mode === 'detect';
+    const hasResult = !!dedaiState.rewritten;
+    const goBtn = document.getElementById('dedai-go');
+    const detectBtn = document.getElementById('dedai-detect-btn');
+    const applyBtn = document.getElementById('dedai-apply');
+    const revertBtn = document.getElementById('dedai-revert');
+    const afterTa = document.getElementById('dedai-text-after');
+    if (goBtn) goBtn.style.display = isDetect ? 'none' : '';
+    if (detectBtn) detectBtn.style.display = isDetect ? '' : 'none';
+    if (applyBtn) applyBtn.style.display = hasResult ? '' : 'none';
+    if (revertBtn) revertBtn.style.display = hasResult ? '' : 'none';
+    if (afterTa) afterTa.readOnly = hasResult;
+  }
+
+  function runDedaiDetect() {
+    const text = dedaiState.original;
+    const r = detectAiFlavor(text);
+    updateDedaiMeter(r.score);
+    renderDedaiSignals(r);
+    document.getElementById('dedai-text-after').value =
+      r.signals.length
+        ? '检测完成。\n\n发现以下 AI 味信号:\n• ' + r.signals.join('\n• ') +
+          '\n\n建议:\n1. 用「⚡ 本地快速清洗」一键替换套话\n2. 用「🧠 AI 智能改写」让 DeepSeek 重新组织'
+        : '检测完成。\n\n没有发现明显 AI 味信号 👍';
+  }
+
+  async function runDedaiRewrite() {
+    const text = dedaiState.original;
+    const afterTa = document.getElementById('dedai-text-after');
+    const goBtn = document.getElementById('dedai-go');
+    if (dedaiState.mode === 'ai' && !hasApiKey()) {
+      showApiSettings();
+      return;
+    }
+    if (goBtn) { goBtn.disabled = true; goBtn.textContent = '⏳ 处理中…'; }
+    try {
+      let result;
+      if (dedaiState.mode === 'local') {
+        result = dedaiLocal(text);
+      } else {
+        result = await dedaiAI(text);
+      }
+      if (!result || result.startsWith('⚠️') || result.startsWith('❌')) {
+        toastKind(result || '改写失败', 'bad');
+        return;
+      }
+      dedaiState.rewritten = result;
+      afterTa.value = result;
+      const after = detectAiFlavor(result);
+      const before = detectAiFlavor(text);
+      updateDedaiMeter(after.score);
+      renderDedaiSignals(after);
+      const delta = before.score - after.score;
+      if (delta > 0) {
+        renderDedaiSignals({ score: after.score, signals: after.signals.concat(['✓ 下降 ' + delta + ' 分']) });
+      }
+      updateDedaiButtons();
+    } finally {
+      if (goBtn) { goBtn.disabled = false; goBtn.textContent = '🪄 开始改写'; }
+    }
+  }
+
+  function applyDedaiResult() {
+    if (!dedaiState.rewritten) return;
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    if (st && dedaiState.level === lvl.id) {
+      st.content = dedaiState.rewritten;
+      const ta = document.getElementById('editor');
+      if (ta) {
+        ta.value = dedaiState.rewritten;
+        ta.dispatchEvent(new Event('input'));
+      }
+      toastKind('已应用到编辑器', 'ok');
+      hideDedai();
+    } else {
+      toastKind('关卡已切换,请重新改写', 'warn');
+    }
+  }
+
+  function revertDedaiResult() {
+    dedaiState.rewritten = '';
+    document.getElementById('dedai-text-after').value = '';
+    updateDedaiButtons();
+    const r = detectAiFlavor(dedaiState.original);
+    updateDedaiMeter(r.score);
+    renderDedaiSignals(r);
   }
 
   function showApiSettings() {
@@ -1146,6 +1525,27 @@
     });
     document.getElementById('reader-copy-all').addEventListener('click', readerCopyAll);
     document.getElementById('reader-export').addEventListener('click', readerExport);
+
+    // 除 AI 味
+    document.getElementById('btn-dedai').addEventListener('click', showDedai);
+    document.getElementById('btn-detect').addEventListener('click', showDetectResult);
+    document.getElementById('dedai-modal-close').addEventListener('click', hideDedai);
+    document.getElementById('dedai-cancel').addEventListener('click', hideDedai);
+    document.getElementById('dedai-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'dedai-modal-bg') hideDedai();
+    });
+    document.querySelectorAll('.dedai-modes button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.dedai-modes button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        dedaiState.mode = btn.getAttribute('data-mode');
+        updateDedaiButtons();
+      });
+    });
+    document.getElementById('dedai-detect-btn').addEventListener('click', () => runDedaiDetect());
+    document.getElementById('dedai-go').addEventListener('click', () => runDedaiRewrite());
+    document.getElementById('dedai-apply').addEventListener('click', applyDedaiResult);
+    document.getElementById('dedai-revert').addEventListener('click', revertDedaiResult);
 
     // 作品切换
     document.getElementById('work-switcher').addEventListener('click', e => {
@@ -2006,6 +2406,9 @@
       showSearch, hideSearch, performSearch, searchInWork,
       showShowcase, hideShowcase, renderShowcase, workStats,
       openReader, hideReader, exportAllShowcase,
+      showDedai, hideDedai, runDedaiDetect, runDedaiRewrite,
+      applyDedaiResult, showDetectResult,
+      detectAiFlavor, dedaiLocal, postProcessText, splitLongSentences,
     };
   }
   
