@@ -756,32 +756,30 @@
 
     let systemPrompt;
     if (mode === 'rewrite') {
-      systemPrompt = '你是番茄小说/起点中文网的资深编辑。改写用户文字,去除AI痕迹,同时严格遵守网文排版规范。\n\n' +
-        '【排版铁律——手机阅读优化】\n' +
-        '1. 一句一段:每个自然段只写一句话,段落控制在10-40字。这是网文最基本的要求\n' +
-        '2. 段落错落有致:不要所有段落一样长。短段(一句话)和长段(两三句话)交替,像插花一样\n' +
-        '3. 绝不写超过4行的段落——手机屏幕上超过4行读者就会错行\n' +
-        '4. 对话单独成段:角色说话用引号,前后各空一行。对话占比30-40%\n' +
-        '5. 章末钩子:最后一段必须是悬念或反转,让读者想翻下一页\n\n' +
-        '【句式节奏——像追剧一样】\n' +
-        '- 紧张时:短句连发,每句5-15字,像子弹一样\n' +
-        '- 舒展时:长句铺陈,30-60字,用逗号连接不换气\n' +
-        '- 至少3个1-2字碎片句(如"操。""行。""完了。")\n' +
-        '- 至少2个50+字流水句(用逗号连着写不换气)\n\n' +
-        '【人味注入——像真人写的】\n' +
-        '- 内心吐槽:写到一半突然来一句"等等,这不对吧"\n' +
-        '- 自相矛盾:上一句说"我不在乎",下一句又说"说不在意是假的"\n' +
-        '- 跑题再绕回:岔开说一句不相干的,然后又绕回来\n' +
-        '- 口头禅重复:老是说"说真的""怎么说呢""你知道吗"\n' +
-        '- 具体细节:周三下午/凌晨两点半/便利店/地铁站/出租屋\n' +
-        '- 身体感受:后背发凉/头皮发麻/手心出汗/嗓子眼发紧\n\n' +
-        '【网文节奏——让读者停不下来】\n' +
-        '- 每2000字至少1个爽点(打脸/反转/揭秘/收获)\n' +
-        '- 爽点要详写:围观者反应/敌人表情变化/主角心理活动\n' +
-        '- 章末必须留钩子:"当她揭开面具,在场所有人倒吸冷气"\n\n' +
-        '【禁止清单——这些词出现就扣分】\n' +
-        '值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见\n\n' +
-        '保留原文情节,只改写法。直接输出纯小说正文,不加任何说明。';
+      systemPrompt = '你是凌晨三点还在赶稿的网文作者,刚跟编辑吵完架。改写以下文字,去除所有AI痕迹。\n\n' +
+        '【核心目标:让朱雀检测系统认为这是真人写的】\n' +
+        '朱雀看两个指标:\n' +
+        '1. 困惑度(perplexity):AI每个词都是"最可能的选择"→你要故意用"不太可能的词"\n' +
+        '2. 突发性(burstiness):AI句长均匀→你要让句长极端不均\n\n' +
+        '【具体操作】\n' +
+        '1. 句子碎片化:\n' +
+        '   - 至少4个1-3字极短句:操。/行。/算了。/完了。/草。/嗯。\n' +
+        '   - 至少2个50+字流水句,用逗号连着写不换气\n' +
+        '   - 连续三句长度差必须>20字\n\n' +
+        '2. 注入真人特征(至少选6个):\n' +
+        '   a) 省略主语:让句子缺主语,像口语\n' +
+        '   b) 自相矛盾:上句说"无所谓"下句说"说不在意是假的"\n' +
+        '   c) 跑题再绕回:突然岔开说一句不相干的\n' +
+        '   d) 重复口头禅:同一段出现2次"说真的"\n' +
+        '   e) 具体细节:周三下午/便利店/瑞幸/花了38块\n' +
+        '   f) 身体感受:后背发凉/手心出汗/嗓子干得冒烟\n' +
+        '   g) 对读者喊话:你猜怎么着/你别说\n' +
+        '   h) 口语缩写:咋了/啥/没/不行\n\n' +
+        '3. 禁止清单(出现就扣分):\n' +
+        '   值得注意的是/不得不说/综上所述/在当今社会/众所周知/\n' +
+        '   与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/\n' +
+        '   不禁/缓缓/淡淡/微微/静静/默默/不由自主\n\n' +
+        '4. 保留原文情节,只改写法。直接输出纯小说正文:';
     } else if (mode === 'polish') {
       systemPrompt = '你是番茄小说的资深编辑。用户写了一段初稿,你只做最小微调。\n\n' +
         '规则:\n' +
@@ -791,29 +789,41 @@
         '4. 不要加任何AI套话或总结\n' +
         '5. 直接输出纯小说正文';
     } else {
-      systemPrompt = '你是一位在起点中文网/番茄小说连载的资深网文作者。你正在为手机读者创作精彩章节。\n\n' +
-        '【排版规范——手机阅读优化,必须严格遵守】\n' +
-        '1. 一句一段:每个自然段只写一句话,10-40字。这是网文最基本的排版要求\n' +
-        '2. 段落错落有致:短段(一句)和长段(两三句)交替,不要所有段落一样长\n' +
-        '3. 绝不写超过4行的段落——手机屏幕超过4行读者会错行\n' +
-        '4. 对话单独成段:角色说话用引号,前后各空一行。对话占30-40%\n' +
-        '5. 章节结构:钩子开头(前100字抓人)→冲突推进→爽点爆发→新钩子收尾\n' +
-        '6. 字数:续写300-500字,信息密度高,不水字数\n\n' +
-        '【句式节奏——像追剧一样】\n' +
-        '- 紧张时:短句连发(5-15字),像子弹一样\n' +
-        '- 舒展时:长句铺陈(30-60字),用逗号连接不换气\n' +
-        '- 至少3个1-2字碎片句,至少2个50+字流水句\n\n' +
-        '【写作铁律——让读者停不下来】\n' +
-        '- 开场直接进入冲突,不要铺垫背景\n' +
-        '- 每段都有张力,不让读者在平路上走太久\n' +
-        '- 爽点要详写:围观者反应+敌人表情变化+主角心理\n' +
-        '- 章末必须留钩子,让读者想翻下一页\n\n' +
-        '【人味特征——像真人写的】\n' +
-        '- 内心吐槽/自相矛盾/跑题再绕回/口头禅重复\n' +
-        '- 具体细节:时间(周三下午)/地点(便利店)/品牌(瑞幸)\n' +
-        '- 身体感受:后背发凉/头皮发麻/手心出汗\n\n' +
-        '【禁止清单】\n' +
-        '值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/仿佛/宛如/犹如/似乎\n\n' +
+      systemPrompt = '你是凌晨三点还在赶稿的网文作者,刚跟编辑吵完架,心情很操蛋。你正在为手机读者创作精彩章节。\n\n' +
+        '【核心原则:像真人发牢骚,不像AI在生成】\n' +
+        '朱雀AI检测看两个指标:\n' +
+        '1. 困惑度:AI每个词都是"最可能的选择"→你要故意用"不太可能的词"\n' +
+        '2. 突发性:AI句长均匀→你要让句长极端不均\n\n' +
+        '【句式操作——必须做到】\n' +
+        '1. 碎片短句:\n' +
+        '   - 至少4个1-3字极短句:操。/行。/算了。/完了。/草。/嗯。\n' +
+        '   - 这些碎片句要像子弹一样打出来,不解释\n\n' +
+        '2. 流水长句:\n' +
+        '   - 至少2个50+字长句,用逗号连着写不换气\n' +
+        '   - 中间不换行,一口气读完\n\n' +
+        '3. 句长波动:\n' +
+        '   - 连续三句长度差必须>20字\n' +
+        '   - 短→长→短→超长,像心电图一样起伏\n\n' +
+        '4. 省略主语:\n' +
+        '   - 不要每句都加"我""他""她"\n' +
+        '   - 直接说动作:走了。/看了一眼。/没说话。\n\n' +
+        '【人味注入——至少选6个】\n' +
+        'a) 内心吐槽:写到一半突然"等等,这么说不对"\n' +
+        'b) 自相矛盾:上句说"无所谓"下句说"说不在意是假的"\n' +
+        'c) 跑题:突然岔开说一句不相干的,然后又绕回来\n' +
+        'd) 重复口头禅:同一段出现2次"说真的"或"怎么说呢"\n' +
+        'e) 具体细节:周三下午/便利店/瑞幸/花了38块/出租屋\n' +
+        'f) 身体感受:后背发凉/手心出汗/嗓子干得冒烟/脑袋嗡嗡的\n' +
+        'g) 对读者喊话:你猜怎么着/你别说/你说是不是\n' +
+        'h) 口语缩写:咋了/啥/没/不行/得了\n\n' +
+        '【网文节奏】\n' +
+        '- 开场直接进入冲突,不要铺垫\n' +
+        '- 每段都有张力\n' +
+        '- 章末必须留钩子\n\n' +
+        '【禁止清单——出现就扣分】\n' +
+        '值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/\n' +
+        '与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见/\n' +
+        '不禁/缓缓/淡淡/微微/静静/默默/不由自主\n\n' +
         '直接输出纯小说正文,不加任何前缀说明或格式标记。';
         '- 身体感受:后背发凉/头皮发麻/手心出汗\n\n' +
         '【禁止清单】\n' +
@@ -1396,24 +1406,198 @@
     return out;
   }
 
-  // 一键除 AI 味(纯本地,无需 API) — 多轮深度降重
+  // ===== 结构化降重：直接操控困惑度+突发性（朱雀核心指标） =====
+  // 核心原理：朱雀看的是句长变异系数(CV)和token概率分布
+  // 不是换几个词就行，必须改变句子结构本身
+
+  // 结构化突变：打碎+合并+变异，让句长CV飙升
+  function structuralBurst(text) {
+    if (!text || text.length < 50) return text;
+    let out = text;
+
+    // 第1步：拆碎——把部分句子打成3-5字碎片
+    // 真人写作的特征：紧张时会连续用极短句
+    const sentences = out.split(/([。！？])/);
+    const fragments = ['操。','行。','算了。','完了。','麻了。','吐了。','绝了。','离谱。','真的假的。','我靠。','不是。','等等。','啊这。','草。','嗯。','好吧。','服了。','无语。','逆天。','裂开。'];
+    const result = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      if (!s || /^[。！？]$/.test(s)) { result.push(s); continue; }
+      // 15%概率把这句话拆成碎片
+      if (s.length > 20 && Math.random() < 0.15) {
+        const frag = fragments[Math.floor(Math.random() * fragments.length)];
+        result.push(frag);
+        // 在句号后断开，前半部分变短
+        const breakPos = Math.floor(s.length * (0.3 + Math.random() * 0.3));
+        const commaPos = s.indexOf('，', breakPos);
+        if (commaPos > 0 && commaPos < s.length - 5) {
+          result.push(s.slice(0, commaPos + 1));
+          result.push(s.slice(commaPos + 1));
+        } else {
+          result.push(s);
+        }
+      } else {
+        result.push(s);
+      }
+    }
+    out = result.join('');
+
+    // 第2步：合并——把连续短句焊成一个流水句
+    // 真人特征：有些地方一口气写很长，用逗号连着不换气
+    const lines = out.split('\n');
+    const merged = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) { merged.push(lines[i]); i++; continue; }
+      // 如果连续3行都是短句(<15字)，合并成一个长流水句
+      if (i + 2 < lines.length) {
+        const l1 = lines[i].trim(), l2 = lines[i+1].trim(), l3 = lines[i+2].trim();
+        if (l1.length < 15 && l2.length < 15 && l3.length < 15 && 
+            l1.length > 2 && l2.length > 2 && l3.length > 2) {
+          // 合并：去掉句号，用逗号连接
+          const combined = l1.replace(/[。！？]$/, '') + '，' + 
+                          l2.replace(/[。！？]$/, '') + '，' + 
+                          l3.replace(/[。！？]$/, '') + '。';
+          merged.push(combined);
+          i += 3;
+          continue;
+        }
+      }
+      merged.push(lines[i]);
+      i++;
+    }
+    out = merged.join('\n');
+
+    // 第3步：变异——概率化改变句子长度
+    // 20%概率把一个长句截断成两个短句
+    const sents2 = out.split(/([。！？])/);
+    const varResult = [];
+    for (let j = 0; j < sents2.length; j++) {
+      const s = sents2[j];
+      if (!s || /^[。！？]$/.test(s)) { varResult.push(s); continue; }
+      if (s.length > 30 && Math.random() < 0.2) {
+        // 找中间的逗号位置截断
+        const mid = Math.floor(s.length / 2);
+        const commaPos = s.lastIndexOf('，', mid + 10);
+        const commaPos2 = s.indexOf('，', mid - 10);
+        const bestPos = commaPos > 0 ? commaPos : commaPos2;
+        if (bestPos > 5 && bestPos < s.length - 5) {
+          varResult.push(s.slice(0, bestPos + 1));
+          varResult.push(s.slice(bestPos + 1));
+          continue;
+        }
+      }
+      varResult.push(s);
+    }
+    out = varResult.join('');
+
+    return out;
+  }
+
+  // 低概率词替换：不是换同义词，是换"在这个语境下不常见的词"
+  function lowerProbability(text) {
+    if (!text) return text;
+    let out = text;
+    // 这些词在AI文本中出现概率极高，替换为低概率但自然的表达
+    const LOW_PROB = [
+      [/(?:不由自主地)/g, '鬼使神差地'],
+      [/(?:缓缓地)/g, '慢吞吞地'],
+      [/(?:默默地)/g, '闷声'],
+      [/(?:静静地)/g, '一声不吭地'],
+      [/(?:淡淡地)/g, '漫不经心地'],
+      [/(?:微微)/g, '稍稍'],
+      [/(?:轻轻)/g, '随手'],
+      [/(?:紧紧)/g, '死死'],
+      [/(?:慢慢地)/g, '磨磨蹭蹭'],
+      [/(?:快步)/g, '三步并两步'],
+      [/(?:目光)/g, '眼珠子'],
+      [/(?:内心)/g, '心里头'],
+      [/(?:身体)/g, '身子骨'],
+      [/(?:声音)/g, '嗓子'],
+      [/(?:说道)/g, () => ['嘟囔','嘀咕','嚷','喊','吼'][Math.floor(Math.random()*5)]],
+      [/(?:看着)/g, () => ['瞅着','瞄着','瞥着','盯着眼'][Math.floor(Math.random()*4)]],
+      [/(?:走了)/g, () => ['溜了','蹿了','挪了','颠了'][Math.floor(Math.random()*4)]],
+      [/(?:笑了)/g, () => ['乐了','噗嗤一下','嘴角咧了咧','憋不住了'][Math.floor(Math.random()*4)]],
+      [/(?:点了点头)/g, () => ['嗯了一声','鼻子哼了下','下巴颏动了动'][Math.floor(Math.random()*3)]],
+      [/(?:想了想)/g, () => ['琢磨了一下','寻思半天','咂摸咂摸味儿'][Math.floor(Math.random()*3)]],
+      [/(?:突然)/g, () => Math.random() < 0.5 ? '猛地' : Math.random() < 0.5 ? '冷不丁' : '一下子'],
+      [/(?:非常)/g, () => ['贼','巨','特','老'][Math.floor(Math.random()*4)]],
+      [/(?:很快)/g, () => ['没一会儿','转眼间','一溜烟'][Math.floor(Math.random()*3)]],
+      [/(?:终于)/g, () => ['可算','好歹','总算'][Math.floor(Math.random()*3)]],
+      [/(?:但是)/g, () => ['可','不过','话说回来'][Math.floor(Math.random()*3)]],
+      [/(?:因为)/g, () => ['说白了','原因嘛','就因为'][Math.floor(Math.random()*3)]],
+      [/(?:所以)/g, () => ['这就导致','搞得','整得'][Math.floor(Math.random()*3)]],
+      [/(?:好像)/g, () => ['八成','估摸着','差不离'][Math.floor(Math.random()*3)]],
+    ];
+    LOW_PROB.forEach(([re, rep]) => {
+      if (typeof rep === 'function') {
+        out = out.replace(re, rep);
+      } else {
+        out = out.replace(re, rep);
+      }
+    });
+    return out;
+  }
+
+  // 注入真人写作"瑕疵"：不完美才是真人
+  function addHumanErrors(text) {
+    if (!text || text.length < 100) return text;
+    let out = text;
+
+    // 1. 概率化省略主语（真人经常省略）
+    out = out.replace(/我([走看听说想])/g, (m, c) => Math.random() < 0.3 ? c : m);
+    out = out.replace(/他([走看听说想])/g, (m, c) => Math.random() < 0.3 ? c : m);
+
+    // 2. 概率化用口语缩写
+    out = out.replace(/不知道/g, Math.random() < 0.3 ? '不知道' : '不知道');
+    out = out.replace(/怎么了/g, () => Math.random() < 0.3 ? '咋了' : '怎么了');
+    out = out.replace(/什么/g, () => Math.random() < 0.3 ? '啥' : '什么');
+    out = out.replace(/没有/g, () => Math.random() < 0.3 ? '没' : '没有');
+    out = out.replace(/不可以/g, () => Math.random() < 0.3 ? '不行' : '不可以');
+
+    // 3. 概率化加标点瑕疵（真人标点不规范）
+    if (Math.random() < 0.2) {
+      // 把一个句号换成省略号
+      const periodPos = out.indexOf('。');
+      if (periodPos > 0) {
+        out = out.slice(0, periodPos) + '...' + out.slice(periodPos + 1);
+      }
+    }
+
+    // 4. 概率化加重复（真人说话会重复）
+    if (Math.random() < 0.15 && out.length > 200) {
+      const words = ['真的','不是','我跟你说','怎么说呢'];
+      const word = words[Math.floor(Math.random() * words.length)];
+      if (out.indexOf(word) >= 0) {
+        const lastPeriod = out.lastIndexOf('。');
+        if (lastPeriod > 0) {
+          out = out.slice(0, lastPeriod + 1) + word + '，' + out.slice(lastPeriod + 1);
+        }
+      }
+    }
+
+    return out;
+  }
+
+  // 一键除 AI 味(纯本地,无需 API) — 结构化降重
+  // 核心思路：不是换词，是改变句子结构本身
   function dedaiLocal(text) {
     if (!text) return text;
     let out = text;
-    // 第一轮:套话替换+长句拆短
+    // 第1轮:套话替换(清理明显AI痕迹)
     out = postProcessText(out);
-    out = splitLongSentences(out);
-    // 第二轮:句式打散+段落重组
-    out = scrambleSentenceStarts(out);
-    out = scrambleParagraphs(out);
-    // 第三轮:注入人味(口语词+碎片句)
-    out = injectColloquial(out);
-    out = injectFragments(out);
-    // 第四轮:随机化打散(每次结果不同)
-    out = randomScramble(out);
-    // 第五轮:人味注入(思维跳跃+自相矛盾+具体细节)
+    // 第2轮:结构化突变(直接操控困惑度+突发性)
+    out = structuralBurst(out);
+    // 第3轮:低概率词替换(不是同义词，是低频表达)
+    out = lowerProbability(out);
+    // 第4轮:注入真人瑕疵(省略主语/口语缩写/标点不规范)
+    out = addHumanErrors(out);
+    // 第5轮:人味注入(思维跳跃+自相矛盾+具体细节)
     out = humanChaos(out);
-    // 第六轮:清理格式
+    // 第6轮:随机化打散(每次结果不同)
+    out = randomScramble(out);
+    // 第7轮:清理格式
     out = out
       .replace(/[,，]{2,}/g, '，')
       .replace(/[ ]{2,}/g, ' ')
@@ -1467,7 +1651,10 @@
     result = await threeRoundProtocol(result);
     if (!result || result.startsWith('⚠️') || result.startsWith('❌')) return result;
 
-    // 第3步:最终人味注入
+    // 第3步:最终结构化降重
+    result = structuralBurst(result);
+    result = lowerProbability(result);
+    result = addHumanErrors(result);
     result = humanChaos(result);
     result = deduplicateText(result);
     result = postProcessText(result);
@@ -1631,12 +1818,14 @@
     const r4 = await callAI(p4, 'polish');
     if (!r4 || r4.startsWith('⚠️') || r4.startsWith('❌')) return r4;
 
-    // 后处理
+    // 后处理:结构化降重
     let result = r4;
     result = deduplicateText(result);
-    result = postProcessText(result);
-    result = splitLongSentences(result);
+    result = structuralBurst(result);
+    result = lowerProbability(result);
+    result = addHumanErrors(result);
     result = humanChaos(result);
+    result = postProcessText(result);
     return result;
   }
 
@@ -1703,17 +1892,18 @@
     const r3 = await callAI(p3, 'rewrite');
     if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
 
-    // 最终后处理
+    // 最终后处理:结构化降重
     let result = r3;
     result = deduplicateText(result);
-    result = postProcessText(result);
-    result = splitLongSentences(result);
-    result = randomScramble(result);
+    result = structuralBurst(result);
+    result = lowerProbability(result);
+    result = addHumanErrors(result);
     result = humanChaos(result);
+    result = postProcessText(result);
     return result;
   }
 
-  // ===== 深度本地降重(参考 qu-ai-wei 51条规则) =====
+  // 深度本地降重(参考 qu-ai-wei 51条规则)
   // 不需要API,纯本地规则引擎
   function deepLocalDedai(text) {
     if (!text) return text;
@@ -1763,21 +1953,22 @@
     ];
     HEAVY_SWAPS.forEach(([re, rep]) => { out = out.replace(re, rep); });
 
-    // 第2轮:句式打散
-    out = scrambleSentenceStarts(out);
-    out = scrambleParagraphs(out);
+    // 第2轮:结构化突变(直接操控困惑度+突发性)
+    out = structuralBurst(out);
 
-    // 第3轮:注入口语化元素
-    out = injectColloquial(out);
-    out = injectFragments(out);
+    // 第3轮:低概率词替换
+    out = lowerProbability(out);
 
-    // 第4轮:随机化
-    out = randomScramble(out);
+    // 第4轮:注入口语化元素
+    out = addHumanErrors(out);
 
-    // 第5轮:人味注入(思维跳跃+自相矛盾+具体细节)
+    // 第5轮:人味注入
     out = humanChaos(out);
 
-    // 第6轮:清理
+    // 第6轮:随机化
+    out = randomScramble(out);
+
+    // 第7轮:清理
     out = postProcessText(out);
     out = splitLongSentences(out);
     return out;
@@ -2419,60 +2610,43 @@
         // 网文排版格式化
         finalText = formatNovelText(finalText);
 
-        // 自动降AI味:三轮降重协议
+        // 自动降AI味:1次API重写+结构化后处理
         if (autoDedai) {
-          btn.textContent = '🪄 降重第1轮…';
-          const p1 = '你是番茄小说的资深编辑。改写以下文字,去除AI痕迹,同时严格遵守平台格式。\n\n' +
-            '【格式铁律】\n' +
-            '1. 一句一段:每个自然段只写一句话,15-60字\n' +
-            '2. 对话单独成段,用引号。对话占30-40%\n' +
-            '3. 章末必须有悬念钩子\n\n' +
-            '【人味注入】\n' +
-            '4. 句子长度极端不均:至少3个1-3字碎片,至少2个50+字流水句\n' +
-            '5. 加入:内心吐槽/自相矛盾/跑题再绕回/口头禅/具体细节/身体感受\n' +
-            '6. 禁止:值得注意的是/不得不说/综上所述/在当今社会/众所周知/仿佛/宛如/犹如/似乎\n' +
-            '7. 保留原文情节,只改写法。直接输出:\n\n' + finalText;
+          btn.textContent = '🪄 降重中…';
+          const p1 = '你是凌晨三点赶稿的网文作者,刚跟编辑吵完架,心情很操蛋。改写以下文字。\n\n' +
+            '【核心:让文本读起来像一个人在发牢骚而不是AI在生成】\n\n' +
+            '1. 句子长度极端不均:\n' +
+            '   - 至少4个句子只有1-3个字:操。/行。/算了。/完了。\n' +
+            '   - 至少2个句子超过50字,用逗号连着写不换气\n' +
+            '   - 连续三句长度差必须>20字\n\n' +
+            '2. 加入以下"人味"元素(至少选6个):\n' +
+            '   a) 内心吐槽:写到一半突然"等等,这么说不对"\n' +
+            '   b) 自相矛盾:上句说"我无所谓"下句说"说不在意是假的"\n' +
+            '   c) 跑题:突然岔开说一句不相干的,然后又绕回来\n' +
+            '   d) 重复口头禅:同一段里出现2次"说真的"或"怎么说呢"\n' +
+            '   e) 具体细节:时间(周三下午)/地点(便利店门口)/品牌(全家)/数字(花了38块)\n' +
+            '   f) 身体感受:后背发凉/手心出汗/嗓子干得冒烟/脑袋嗡嗡的\n' +
+            '   g) 对读者喊话:你猜怎么着/你别说/你说是不是\n' +
+            '   h) 省略主语:让句子缺主语,像口语\n\n' +
+            '3. 禁止使用以下词汇(用了就是AI):\n' +
+            '   值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/\n' +
+            '   与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见/\n' +
+            '   不禁/缓缓/淡淡/微微/静静/默默/不由自主\n\n' +
+            '4. 保留原文情节,只改写法。直接输出改写内容:\n\n' + finalText;
           const r1 = await callAI(p1, 'rewrite');
           if (r1 && !r1.startsWith('⚠️') && !r1.startsWith('❌')) {
             finalText = r1;
           }
 
-          btn.textContent = '🪄 降重第2轮…';
-          const p2 = '你是起点中文网的编辑,觉得还不够像人写的,再改一遍。\n\n' +
-            '要求:\n' +
-            '1. 打乱段落逻辑:不是所有段落都要有因果关系\n' +
-            '2. 加反问句/省略号/破折号\n' +
-            '3. 故意啰嗦:把一句话拆成三句说\n' +
-            '4. 加具体品牌/地名:瑞幸/地铁站/出租屋\n' +
-            '5. 保持一句一段的格式\n' +
-            '直接输出:\n\n' + finalText;
-          const r2 = await callAI(p2, 'rewrite');
-          if (r2 && !r2.startsWith('⚠️') && !r2.startsWith('❌')) {
-            finalText = r2;
-          }
-
-          btn.textContent = '🪄 降重第3轮…';
-          const p3 = '你是朱雀AI检测系统。检查以下文本的AI特征,修改后输出。\n\n' +
-            '检查维度:\n' +
-            '1. 困惑度:每个词是否都是"最可能的选择"?替换低频词\n' +
-            '2. 突发性:句长是否均匀?必须有极短+极长句\n' +
-            '3. 语义结构:是否呈"总分总"?打乱逻辑\n' +
-            '4. 段首重复:连续段落是否用相同句式开头?\n' +
-            '5. 对话占比:是否达到30-40%?\n' +
-            '6. 碎片句:是否有1-2字的短句?\n' +
-            '7. 具体细节:是否有时间/地点/品牌等真实元素?\n' +
-            '8. 章末钩子:最后一段是否有悬念?\n\n' +
-            '保持一句一段格式。直接输出:\n\n' + finalText;
-          const r3 = await callAI(p3, 'rewrite');
-          if (r3 && !r3.startsWith('⚠️') && !r3.startsWith('❌')) {
-            finalText = r3;
-          }
-
-          // 后处理
+          // 结构化后处理(本地,无需API)
+          btn.textContent = '🪄 结构化降重…';
+          finalText = structuralBurst(finalText);
+          finalText = lowerProbability(finalText);
+          finalText = addHumanErrors(finalText);
+          finalText = humanChaos(finalText);
+          finalText = randomScramble(finalText);
           finalText = deduplicateText(finalText);
           finalText = postProcessText(finalText);
-          finalText = randomScramble(finalText);
-          finalText = humanChaos(finalText);
           finalText = formatNovelText(finalText);
           btn.textContent = '✨ AI 生成';
         }
