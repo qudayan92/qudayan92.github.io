@@ -550,7 +550,15 @@
         div.addEventListener('click', (e) => {
           if (e.target.classList.contains('todo-check')) {
             toggleTodoDone(t.key);
-          } else {
+    } else if (mode === 'polish') {
+      systemPrompt = '你是一位极其克制的中文编辑。你的工作原则:\n' +
+        '1. 能不改就不改,只在万不得已时才动一个字\n' +
+        '2. 只改错别字和明显语病\n' +
+        '3. 绝对不要改变原文风格、语气、用词习惯\n' +
+        '4. 绝对不要加入任何你自己的表达\n' +
+        '5. 输出与输入的相似度必须>95%\n' +
+        '6. 直接输出润色后的内容';
+    } else {
             jumpToTodo(t);
           }
         });
@@ -760,7 +768,7 @@
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
-          temperature: mode === 'rewrite' ? 0.95 : 0.8,
+          temperature: mode === 'rewrite' ? 1.2 : mode === 'polish' ? 0.3 : 0.9,
           max_tokens: 1024,
         }),
       });
@@ -1201,7 +1209,7 @@
     return out;
   }
 
-  // 智能改写(调 API) — 3轮不同维度改写 + 随机化后处理
+  // 智能改写(调 API) — 3轮不同维度改写 + 随机化后处理 + 去重
   async function dedaiAI(text) {
     if (!text) return text;
     if (!hasApiKey()) {
@@ -1242,12 +1250,58 @@
     const r3 = await callAI(p3, 'rewrite');
     if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
 
-    // 第四轮:随机化后处理(本地,无需API)
+    // 去重:如果结果中有连续重复段落,去掉重复部分
     let result = r3;
+    result = deduplicateText(result);
+    // 第四轮:随机化后处理(本地,无需API)
     result = postProcessText(result);
     result = splitLongSentences(result);
-    result = randomScramble(result);  // 随机打散
+    result = randomScramble(result);
     return result;
+  }
+
+  // 去除连续重复的段落/句子
+  function deduplicateText(text) {
+    if (!text) return text;
+    const lines = text.split(/\n/);
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) { out.push(lines[i]); continue; }
+      // 检查是否与前面某行重复(相似度>80%)
+      let isDup = false;
+      for (let j = Math.max(0, out.length - 5); j < out.length; j++) {
+        const prev = out[j].trim();
+        if (!prev) continue;
+        if (line === prev) { isDup = true; break; }
+        // 简单相似度:共同字符比例
+        if (line.length > 10 && prev.length > 10) {
+          let common = 0;
+          for (const ch of line) { if (prev.indexOf(ch) >= 0) common++; }
+          if (common / Math.min(line.length, prev.length) > 0.85) { isDup = true; break; }
+        }
+      }
+      if (!isDup) out.push(lines[i]);
+    }
+    return out.join('\n');
+  }
+
+  // 人工润色模式:用户写初稿,AI只做微调(保持人类统计特征)
+  async function polishHuman(text) {
+    if (!text) return text;
+    if (!hasApiKey()) {
+      showApiSettings();
+      return '⚠️ 请先配置 API Key';
+    }
+    const prompt = '请对以下用户手写的文章做极小幅度的润色。要求:\n' +
+      '1. 保留原文95%以上的用词和句式不变\n' +
+      '2. 只修正明显的错别字和语病\n' +
+      '3. 只在个别地方调整一下表达让它更通顺\n' +
+      '4. 绝对不要重写段落,不要改变风格\n' +
+      '5. 绝对不要加入任何"值得注意的是""总的来说"等AI套话\n' +
+      '6. 直接输出润色后的内容,不加说明\n\n' +
+      '原文:\n"""\n' + text + '\n"""';
+    return await callAI(prompt, 'polish');
   }
 
   // 应用改写到当前关卡
@@ -2860,7 +2914,7 @@
       openReader, hideReader, exportAllShowcase,
       showDedai, hideDedai, runDedaiDetect, runDedaiRewrite,
       applyDedaiResult, showDetectResult,
-      detectAiFlavor, dedaiLocal, postProcessText, splitLongSentences,
+      detectAiFlavor, dedaiLocal, postProcessText, splitLongSentences, polishHuman, deduplicateText,
       showPaidModal, hidePaidModal, savePaidSettings, updatePaidRow, updatePaidPreview,
     };
   }
