@@ -1006,6 +1006,22 @@
       if (e.key === 'Enter') saveApiSettings();
     });
 
+    // 全文搜索弹窗事件
+    document.getElementById('btn-search').addEventListener('click', showSearch);
+    document.getElementById('search-modal-close').addEventListener('click', hideSearch);
+    document.getElementById('search-modal-ok').addEventListener('click', hideSearch);
+    document.getElementById('search-btn').addEventListener('click', performSearch);
+    document.getElementById('search-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'search-modal-bg') hideSearch();
+    });
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') performSearch();
+        if (e.key === 'Escape') hideSearch();
+      });
+    }
+
     // 作品切换
     document.getElementById('work-switcher').addEventListener('click', e => {
       e.stopPropagation();
@@ -1031,6 +1047,10 @@
           t.textContent = '已保存 ✓';
           setTimeout(() => { t.textContent = old || '已保存'; }, 1200);
         }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        showSearch();
       }
     });
 
@@ -1283,6 +1303,186 @@
     });
   }
   
+  // ===== 12.5 全文搜索 =====
+  const SEARCH_HISTORY_KEY = 'novel-quest.search-history';
+  const SEARCH_HISTORY_MAX = 10;
+  const SNIPPET_RADIUS = 60;
+
+  function getSearchHistory() {
+    try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function saveSearchHistory(keyword) {
+    if (!keyword) return;
+    let history = getSearchHistory().filter(k => k !== keyword);
+    history.push(keyword);
+    if (history.length > SEARCH_HISTORY_MAX) {
+      history = history.slice(-SEARCH_HISTORY_MAX);
+    }
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function clearSearchHistory() {
+    localStorage.removeItem(SEARCH_HISTORY_KEY);
+  }
+
+  function escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  function buildSnippet(text, idx, keyword) {
+    const start = Math.max(0, idx - SNIPPET_RADIUS);
+    const end = Math.min(text.length, idx + keyword.length + SNIPPET_RADIUS);
+    let snippet = text.slice(start, end);
+    if (start > 0) snippet = '…' + snippet;
+    if (end < text.length) snippet = snippet + '…';
+    const escapedSnippet = escapeHtml(snippet);
+    const escapedKeyword = escapeHtml(keyword);
+    const re = new RegExp(escapeRegExp(escapedKeyword), 'gi');
+    return escapedSnippet.replace(re, '<mark>$&</mark>');
+  }
+
+  function searchInWork(workId, keyword, isAll) {
+    if (!keyword) return [];
+    const results = [];
+    const re = new RegExp(escapeRegExp(keyword), 'gi');
+    const workList = isAll ? Object.values(state.works) : [state.works[workId]];
+    workList.forEach(w => {
+      if (!w || !w.levels) return;
+      LEVELS.forEach(lvl => {
+        const st = w.levels[lvl.id];
+        if (!st || !st.content) return;
+        let m;
+        re.lastIndex = 0;
+        while ((m = re.exec(st.content)) !== null) {
+          if (m.index === re.lastIndex) re.lastIndex++;
+          results.push({
+            workId: w.id,
+            workName: w.name,
+            levelId: lvl.id,
+            levelName: lvl.name,
+            index: m.index,
+            match: m[0],
+            snippet: buildSnippet(st.content, m.index, keyword),
+          });
+          if (results.length >= 200) break;
+        }
+        if (results.length >= 200) break;
+      });
+      if (results.length >= 200) break;
+    });
+    return results;
+  }
+
+  function renderSearchHistory() {
+    const container = document.getElementById('search-history');
+    if (!container) return;
+    const history = getSearchHistory();
+    if (history.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = '<span style="font-size:11px;color:var(--muted);align-self:center;">最近:</span>' +
+      history.map(k => `<span class="search-history-chip" data-key="${escapeHtml(k)}">${escapeHtml(k)}</span>`).join('');
+    container.querySelectorAll('.search-history-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const input = document.getElementById('search-input');
+        if (input) {
+          input.value = chip.dataset.key;
+          performSearch();
+        }
+      });
+    });
+  }
+
+  function renderSearchResults(results, keyword) {
+    const container = document.getElementById('search-results');
+    const summary = document.getElementById('search-summary');
+    if (!container) return;
+    if (!keyword) {
+      container.innerHTML = '<div class="search-empty">输入关键词开始搜索</div>';
+      if (summary) summary.textContent = '';
+      return;
+    }
+    if (results.length === 0) {
+      container.innerHTML = `<div class="search-empty">未找到「${escapeHtml(keyword)}」相关内容</div>`;
+      if (summary) summary.textContent = `未找到「${keyword}」`;
+      return;
+    }
+    if (summary) summary.textContent = `找到 ${results.length} 处匹配`;
+    container.innerHTML = results.map((r, i) => `
+      <div class="search-result-item" data-i="${i}">
+        <div class="search-result-chapter">${escapeHtml(r.workName)} · ${escapeHtml(r.levelName)}</div>
+        <div class="search-result-snippet">${r.snippet}</div>
+      </div>
+    `).join('');
+    container.querySelectorAll('.search-result-item').forEach((el, i) => {
+      el.addEventListener('click', () => jumpToSearchResult(results[i]));
+    });
+  }
+
+  function jumpToSearchResult(result) {
+    hideSearch();
+    if (state.activeWorkId !== result.workId) {
+      switchWork(result.workId);
+    }
+    setTimeout(() => {
+      switchLevel(result.levelId);
+      const ta = document.getElementById('editor');
+      if (ta) {
+        const before = ta.value.slice(0, result.index);
+        const lines = before.split('\n').length;
+        const lineHeight = 22;
+        ta.scrollTop = Math.max(0, (lines - 5) * lineHeight);
+        ta.focus();
+        ta.setSelectionRange(result.index, result.index + result.match.length);
+        toast('已跳转到匹配位置');
+      }
+    }, 50);
+  }
+
+  function performSearch() {
+    const input = document.getElementById('search-input');
+    const scope = document.getElementById('search-scope');
+    if (!input) return;
+    const keyword = input.value.trim();
+    if (!keyword) {
+      renderSearchResults([], '');
+      return;
+    }
+    const isAll = scope && scope.value === 'all';
+    const results = searchInWork(state.activeWorkId, keyword, isAll);
+    renderSearchResults(results, keyword);
+    if (results.length > 0) {
+      saveSearchHistory(keyword);
+      renderSearchHistory();
+    }
+  }
+
+  function showSearch() {
+    const modal = document.getElementById('search-modal-bg');
+    if (modal) modal.classList.add('open');
+    const input = document.getElementById('search-input');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 50);
+    }
+    renderSearchHistory();
+    renderSearchResults([], '');
+  }
+
+  function hideSearch() {
+    const modal = document.getElementById('search-modal-bg');
+    if (modal) modal.classList.remove('open');
+  }
+  
   // ===== 启动 =====
   if (typeof globalThis !== 'undefined') {
     globalThis.__NQ__ = {
@@ -1300,6 +1500,7 @@
       validateContentForTitleGeneration, renderTitleHistory,
       gatherCurrentText,
       callAI, getApiKey, setApiKey, hasApiKey, showApiSettings, hideApiSettings,
+      showSearch, hideSearch, performSearch, searchInWork,
     };
   }
   

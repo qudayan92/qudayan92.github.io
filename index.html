@@ -521,6 +521,15 @@
   .save-indicator.error .dot { background: var(--bad); }
   @keyframes spin { to { transform: rotate(360deg); } }
   .settings-btn { font-size: 18px !important; padding: 4px 10px !important; min-width: auto !important; background: var(--panel-2) !important; border: 1px solid var(--line) !important; border-radius: 8px !important; }
+  .search-result-item { padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .12s; }
+  .search-result-item:hover { background: var(--panel-2); }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-chapter { color: var(--accent); font-size: 12px; margin-bottom: 4px; }
+  .search-result-snippet { color: var(--text); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .search-result-snippet mark { background: #f5c451; color: #0b1424; padding: 0 2px; border-radius: 2px; font-weight: 600; }
+  .search-history-chip { background: var(--panel-2); border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px; font-size: 12px; color: var(--muted); cursor: pointer; transition: all .12s; }
+  .search-history-chip:hover { color: var(--text); border-color: var(--accent); }
+  .search-empty { color: var(--muted); text-align: center; padding: 30px 10px; font-size: 13px; }
 
   @media (max-width: 720px) {
     main { grid-template-columns: 1fr; }
@@ -545,6 +554,7 @@
   <div class="crumb" id="crumb">当前关卡:<b id="crumb-name">—</b></div>
   <div class="progress" title="整体进度"><i id="progress-bar"></i></div>
   <div class="progress-label" id="progress-label">0%</div>
+  <button class="btn ghost settings-btn" id="btn-search" title="全文搜索 (Ctrl+Shift+F)">🔍</button>
   <button class="btn ghost settings-btn" id="btn-api-settings" title="设置 DeepSeek API Key">⚙️</button>
 </header>
 
@@ -727,6 +737,33 @@
       <span class="spacer"></span>
       <button class="btn ghost" id="api-settings-cancel">取消</button>
       <button class="btn primary" id="api-settings-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全文搜索弹窗 -->
+<div class="modal-bg" id="search-modal-bg">
+  <div class="modal" style="max-width:720px;max-height:85vh;">
+    <div class="modal-head">
+      <h3>🔍 全文搜索</h3>
+      <span class="x" id="search-modal-close">✕</span>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding:16px;">
+      <div style="display:flex;gap:8px;">
+        <input type="search" id="search-input" placeholder="输入关键词，回车搜索…" style="flex:1;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:14px;outline:none;" />
+        <select id="search-scope" style="padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;outline:none;">
+          <option value="current">当前作品</option>
+          <option value="all">全部作品</option>
+        </select>
+        <button class="btn primary" id="search-btn">搜索</button>
+      </div>
+      <div id="search-summary" style="font-size:12px;color:var(--muted);min-height:18px;"></div>
+      <div id="search-history" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0;"></div>
+      <div id="search-results" style="flex:1;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:8px;min-height:120px;max-height:50vh;"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button class="btn ghost" id="search-modal-ok">关闭</button>
     </div>
   </div>
 </div>
