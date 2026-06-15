@@ -1396,12 +1396,16 @@
     return out;
   }
 
-  // 一键除 AI 味(纯本地,无需 API) — 温和版
+  // 一键除 AI 味(纯本地,无需 API) — 中等力度
   function dedaiLocal(text) {
     if (!text) return text;
     let out = text;
-    // 只做套话替换+格式清理,不做破坏性处理
     out = postProcessText(out);
+    // 句式打散:让句长波动更大
+    out = scrambleSentenceStarts(out);
+    // 注入少量口语化元素
+    out = injectColloquial(out);
+    // 清理
     out = out
       .replace(/[,，]{2,}/g, '，')
       .replace(/[ ]{2,}/g, ' ')
@@ -1411,24 +1415,14 @@
     return out;
   }
 
-  // 智能改写(调 API) — 温和版,1次改写+轻量后处理
+  // 智能改写(调 API) — 使用三轮协议
   async function dedaiAI(text) {
     if (!text) return text;
     if (!hasApiKey()) {
       showApiSettings();
       return '⚠️ 请先配置 API Key';
     }
-    // 只做1次API改写,不破坏文本
-    const p = '改写以下文字,让它读起来像真人写的。要求:\n' +
-      '1. 加入2-3句内心吐槽(写到一半突然"等等,这么说不对")\n' +
-      '2. 加入1-2个具体细节(时间/地点/品牌)\n' +
-      '3. 有些句子很短(1-3字),有些句子很长(50+字)\n' +
-      '4. 加口语:你猜怎么着/你别说/说真的\n' +
-      '5. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎\n' +
-      '6. 保留原文情节和格式,直接输出:\n\n' + text;
-    const result = await callAI(p, 'rewrite');
-    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) return result;
-    return postProcessText(result);
+    return await threeRoundProtocol(text);
   }
 
   // 翻译链降AI(调 API)
@@ -1651,25 +1645,63 @@
     return result;
   }
 
-  // 三轮降重协议 — 温和版(只做1次改写)
-  async function threeRoundProtocol(text) {
+  // 三轮降重协议 — 3轮不同维度改写,彻底破坏token分布
+  // 朱雀检测核心:困惑度/突发性/语义结构,需要3个维度分别突破
+  // onProgress: 可选回调 function(msg) 用于更新按钮文字
+  async function threeRoundProtocol(text, onProgress) {
     if (!text) return text;
     if (!hasApiKey()) {
       showApiSettings();
       return '⚠️ 请先配置 API Key';
     }
 
-    const p = '改写以下文字,让它读起来像真人写的。要求:\n' +
-      '1. 加入2-3句内心吐槽\n' +
-      '2. 加入1-2个具体细节\n' +
-      '3. 有些句子很短(1-3字),有些很长(50+字)\n' +
-      '4. 加口语:你猜怎么着/你别说/说真的\n' +
-      '5. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎\n' +
-      '6. 保留原文情节,直接输出:\n\n' + text;
-    const r1 = await callAI(p, 'rewrite');
+    if (onProgress) onProgress('🪄 第1轮/3 困惑度打散…');
+    // 第1轮:困惑度打散 — 让每个token的预测概率变高
+    const p1 = '你是凌晨三点赶稿的网文作者,赶着更新。改写以下文字:\n\n' +
+      '规则:\n' +
+      '1. 高级词→口语词:仿佛→八成是,缓缓→慢吞吞,不禁→没忍住,微微→稍稍,淡淡→漫不经心地\n' +
+      '2. 书面句→碎嘴句:把一个长句拆成2-3个短句,中间加"操""完了""不对"等碎片\n' +
+      '3. 省略主语:中文母语者写小说经常省略"我""他",直接说动作\n' +
+      '4. 加入1-2个具体细节:凌晨两点半/便利店/出租屋/瑞幸咖啡/地铁站\n' +
+      '5. 加入1句内心OS:"等等这不对吧""算了接着写""操又跑题了"\n' +
+      '6. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微/不禁\n' +
+      '7. 保留原文情节,直接输出小说正文:\n\n' + text;
+    const r1 = await callAI(p1, 'rewrite');
     if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
 
-    return postProcessText(r1);
+    if (onProgress) onProgress('🪄 第2轮/3 语义结构打乱…');
+    // 第2轮:语义结构打乱 — 打破AI的总分总模式
+    const p2 = '你是网文作者,正在和编辑吵架后赶稿。改写以下文字:\n\n' +
+      '规则:\n' +
+      '1. 打乱段落顺序:不要按时间线写,可以先写结果再写原因\n' +
+      '2. 打破总分总:开头直接进入场景,不要概述\n' +
+      '3. 加入对读者的喊话:"你猜怎么着""你别说""我说真的"\n' +
+      '4. 自相矛盾:上一句说"不在乎",下一句说"说不在意是假的"\n' +
+      '5. 跑题一句再绕回:岔开说个不相干的,然后"算了接着说"\n' +
+      '6. 句长极端波动:有的句子2字,有的60字用逗号连着写\n' +
+      '7. 保留原文情节,直接输出小说正文:\n\n' + r1;
+    const r2 = await callAI(p2, 'rewrite');
+    if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
+
+    if (onProgress) onProgress('🪄 第3轮/3 风格注入…');
+    // 第3轮:风格注入 — 模拟真人写作的"不完美"
+    const p3 = '你是番茄小说排行榜第一的作者。改写以下文字,让它完全不像AI生成的:\n\n' +
+      '规则:\n' +
+      '1. 加入口头禅重复:老是说"说真的""怎么说呢""你知道吗"\n' +
+      '2. 标点不规范:有些地方不用标点直接流水,有些地方用很多感叹号\n' +
+      '3. 加入身体感受:后背发凉/头皮发麻/手心出汗/嗓子干得冒烟\n' +
+      '4. 有些段落很短(一句话),有些段落很长(三四句话)\n' +
+      '5. 加入具体时间:周三下午/上周二/凌晨两点多\n' +
+      '6. 禁止AI味词汇:值得一提/不得不说/令人惊讶/综上所述/在当今社会/众所周知\n' +
+      '7. 保留原文情节,直接输出小说正文:\n\n' + r2;
+    const r3 = await callAI(p3, 'rewrite');
+    if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
+
+    // 后处理:只做套话替换,不破坏文本
+    let result = r3;
+    result = deduplicateText(result);
+    result = postProcessText(result);
+    return result;
   }
 
   // ===== 深度本地降重(参考 qu-ai-wei 51条规则) =====
@@ -2378,24 +2410,12 @@
         // 网文排版格式化
         finalText = formatNovelText(finalText);
 
-        // 自动降AI味:温和版(1次API+轻量后处理)
+        // 自动降AI味:3轮降重协议(困惑度打散+语义结构打乱+风格注入)
         if (autoDedai) {
-          btn.textContent = '🪄 降重中…';
-          const p1 = '改写以下文字,让它读起来像真人写的,不是AI生成的。要求:\n' +
-            '1. 加入2-3句内心吐槽(写到一半突然"等等,这么说不对")\n' +
-            '2. 加入1-2个具体细节(时间/地点/品牌)\n' +
-            '3. 有些句子很短(1-3字),有些句子很长(50+字用逗号连着)\n' +
-            '4. 加口语:你猜怎么着/你别说/说真的\n' +
-            '5. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微\n' +
-            '6. 保留原文情节和格式,直接输出:\n\n' + finalText;
-          const r1 = await callAI(p1, 'rewrite');
-          if (r1 && !r1.startsWith('⚠️') && !r1.startsWith('❌')) {
-            finalText = r1;
+          finalText = await threeRoundProtocol(finalText, function(msg) { btn.textContent = msg; });
+          if (finalText && !finalText.startsWith('⚠️') && !finalText.startsWith('❌')) {
+            finalText = formatNovelText(finalText);
           }
-
-          // 轻量后处理(不破坏文本)
-          finalText = postProcessText(finalText);
-          finalText = formatNovelText(finalText);
           btn.textContent = '✨ AI 生成';
         }
 
