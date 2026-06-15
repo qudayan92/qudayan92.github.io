@@ -76,7 +76,7 @@
   function emptyLevels() {
     const levels = {};
     LEVELS.forEach((lvl, idx) => {
-      levels[lvl.id] = { status: idx === 0 ? 'unlocked' : 'locked', content: '' };
+      levels[lvl.id] = { status: idx === 0 ? 'unlocked' : 'locked', content: '', paid: false, price: '', trialChars: 500 };
     });
     return levels;
   }
@@ -106,6 +106,9 @@
           Object.values(parsed.works).forEach(w => {
             LEVELS.forEach(lvl => {
               if (!w.levels[lvl.id]) w.levels[lvl.id] = { status: 'locked', content: '' };
+              if (w.levels[lvl.id].paid === undefined) w.levels[lvl.id].paid = false;
+              if (w.levels[lvl.id].price === undefined) w.levels[lvl.id].price = '';
+              if (w.levels[lvl.id].trialChars === undefined) w.levels[lvl.id].trialChars = 500;
             });
             if (!w.todoDone) w.todoDone = {};
             if (!w.updatedAt) w.updatedAt = w.createdAt || new Date().toISOString();
@@ -448,12 +451,17 @@
           (lvl.id === w.currentLevel ? ' active' : '') +
           (st.status === 'locked' ? ' locked' : '') +
           (st.status === 'done' ? ' done' : '') +
-          (lvl.type === 'boss' ? ' boss' : '');
+          (lvl.type === 'boss' ? ' boss' : '') +
+          (st.paid ? ' paid' : '');
+        const paidBadge = st.paid
+          ? '<span class="paid-badge" title="付费章节">💰</span>'
+          : '';
+        const priceText = (st.paid && st.price) ? ' · ¥' + st.price : '';
         item.innerHTML =
           '<div class="badge">' + (st.status === 'done' ? '✓' : lvl.id) + '</div>' +
           '<div class="meta">' +
-            '<div class="name">' + escapeHtml(lvl.name) + '</div>' +
-            '<div class="sub">' + escapeHtml(lvl.sub) + '</div>' +
+            '<div class="name">' + escapeHtml(lvl.name) + paidBadge + '</div>' +
+            '<div class="sub">' + escapeHtml(lvl.sub) + priceText + '</div>' +
           '</div>';
         item.addEventListener('click', () => { if (st.status !== 'locked') switchLevel(lvl.id); });
         body.appendChild(item);
@@ -661,6 +669,7 @@
     renderHeader();
     renderGoal();
     renderEditor();
+    updatePaidRow();
     renderTodoPanel();
     renderCalendar();
     updateWritingFeedback();
@@ -1321,6 +1330,104 @@
     else body.innerHTML = '<div class="raw">' + escapeHtml(modalHtml) + '</div>';
   }
 
+  // ===== 12.11 付费章节模块 =====
+  function updatePaidRow() {
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    const statusEl = document.getElementById('paid-status');
+    if (!statusEl) return;
+    if (st.paid) {
+      statusEl.textContent = '💰 付费章节' + (st.price ? ' · ¥' + st.price : '');
+      statusEl.className = 'status is-paid';
+    } else {
+      statusEl.textContent = '免费章节';
+      statusEl.className = 'status';
+    }
+  }
+
+  function showPaidModal() {
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    document.getElementById('paid-chapter-name').textContent = lvl.name;
+    const cb = document.getElementById('paid-checkbox');
+    cb.checked = !!st.paid;
+    document.getElementById('paid-price-input').value = st.price || '';
+    document.getElementById('paid-trial-input').value = st.trialChars || 500;
+    updatePaidToggleUI(!!st.paid);
+    updatePaidPreview();
+    document.getElementById('paid-modal-bg').classList.add('open');
+  }
+
+  function hidePaidModal() {
+    document.getElementById('paid-modal-bg').classList.remove('open');
+  }
+
+  function updatePaidToggleUI(isPaid) {
+    const row = document.getElementById('paid-toggle-row');
+    if (isPaid) row.classList.add('active'); else row.classList.remove('active');
+    const priceRow = document.getElementById('paid-price-row');
+    const trialRow = document.getElementById('paid-trial-row');
+    priceRow.style.display = isPaid ? 'flex' : 'none';
+    trialRow.style.display = isPaid ? 'flex' : 'none';
+  }
+
+  function updatePaidPreview() {
+    const cb = document.getElementById('paid-checkbox');
+    const previewBox = document.getElementById('paid-preview');
+    const previewContent = document.getElementById('paid-preview-content');
+    if (!cb.checked) {
+      previewBox.style.display = 'none';
+      return;
+    }
+    previewBox.style.display = 'block';
+    const lvl = currentLevel();
+    const price = document.getElementById('paid-price-input').value || '0.99';
+    const trial = parseInt(document.getElementById('paid-trial-input').value) || 500;
+    const content = (work().levels[lvl.id].content || '').slice(0, trial);
+    previewContent.innerHTML = `
+      <div style="font-size:13px;line-height:1.8;color:var(--text);padding:10px 0;">${escapeHtml(content)}${content.length > 0 ? '…' : ''}</div>
+      <div style="margin:16px 0;padding:16px;background:linear-gradient(135deg,rgba(245,196,81,.1),rgba(245,196,81,.05));border:1px dashed var(--gold);border-radius:8px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px;">🔒 本章为付费内容</div>
+        <div style="font-size:13px;color:var(--muted);">付费解锁完整章节 · ¥${escapeHtml(price)}</div>
+      </div>`;
+  }
+
+  function savePaidSettings() {
+    const lvl = currentLevel();
+    const st = work().levels[lvl.id];
+    const cb = document.getElementById('paid-checkbox');
+    st.paid = cb.checked;
+    st.price = cb.checked ? (document.getElementById('paid-price-input').value.trim() || '0.99') : '';
+    st.trialChars = parseInt(document.getElementById('paid-trial-input').value) || 500;
+    scheduleSave();
+    updatePaidRow();
+    hidePaidModal();
+    renderSidebar();
+    toastKind(cb.checked ? '已标记为付费章节' : '已取消付费标记', 'ok');
+  }
+
+  function gatherWorkTextOfWithPaid(w) {
+    if (!w) return '';
+    const chunks = [];
+    LEVELS.forEach(lvl => {
+      const st = w.levels[lvl.id];
+      if (st && st.content && st.content.trim()) {
+        const title = lvl.type === 'chapter' || lvl.type === 'boss'
+          ? '# ' + lvl.name
+          : lvl.type === 'world' ? '# 世界观'
+          : lvl.type === 'character' ? '# 主角'
+          : '# 大纲';
+        chunks.push(title + '\n\n' + st.content.trim());
+        if (st.paid) {
+          const price = st.price || '0.99';
+          const trial = st.trialChars || 500;
+          chunks.push('\n\n---\n\n> 🔒 本章为付费内容，付费解锁完整章节 · ¥' + price + '\n\n---\n');
+        }
+      }
+    });
+    return chunks.join('\n\n---\n\n');
+  }
+
   // ===== 事件绑定 =====
   function bind() {
     const ta = document.getElementById('editor');
@@ -1546,6 +1653,27 @@
     document.getElementById('dedai-go').addEventListener('click', () => runDedaiRewrite());
     document.getElementById('dedai-apply').addEventListener('click', applyDedaiResult);
     document.getElementById('dedai-revert').addEventListener('click', revertDedaiResult);
+
+    // 付费章节设置
+    document.getElementById('btn-paid-set').addEventListener('click', showPaidModal);
+    document.getElementById('paid-modal-close').addEventListener('click', hidePaidModal);
+    document.getElementById('paid-cancel').addEventListener('click', hidePaidModal);
+    document.getElementById('paid-save').addEventListener('click', savePaidSettings);
+    document.getElementById('paid-toggle-row').addEventListener('click', () => {
+      const cb = document.getElementById('paid-checkbox');
+      cb.checked = !cb.checked;
+      updatePaidToggleUI(cb.checked);
+      updatePaidPreview();
+    });
+    document.getElementById('paid-checkbox').addEventListener('change', e => {
+      updatePaidToggleUI(e.target.checked);
+      updatePaidPreview();
+    });
+    document.getElementById('paid-price-input').addEventListener('input', updatePaidPreview);
+    document.getElementById('paid-trial-input').addEventListener('input', updatePaidPreview);
+    document.getElementById('paid-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'paid-modal-bg') hidePaidModal();
+    });
 
     // 作品切换
     document.getElementById('work-switcher').addEventListener('click', e => {
@@ -2223,7 +2351,7 @@
   function exportAllShowcase() {
     const works = Object.values(state.works);
     if (works.length === 0) { toastKind('没有可导出的作品', 'warn'); return; }
-    const chunks = works.map(w => '# ' + w.name + '\n\n' + (gatherWorkTextOf(w) || '（空）'));
+    const chunks = works.map(w => '# ' + w.name + '\n\n' + (gatherWorkTextOfWithPaid(w) || '（空）'));
     const combined = chunks.join('\n\n---\n\n');
     const html = mdToWechatHtml(combined);
     const fileName = '全部作品-' + formatDateShort(new Date().toISOString()) + '.html';
@@ -2254,7 +2382,8 @@
         toc.push({ id: lvl.id, type: 'outline', name: '🗺️ 三幕大纲', words: (lv.content || '').length });
       } else if (lvl.type === 'chapter' || lvl.type === 'boss') {
         if (lv.content) {
-          toc.push({ id: lvl.id, type: lvl.type, name: lvl.name, words: lv.content.length });
+          const paidTag = lv.paid ? ' 💰' : '';
+          toc.push({ id: lvl.id, type: lvl.type, name: lvl.name + paidTag, words: lv.content.length });
         }
       }
     });
@@ -2316,6 +2445,17 @@
     const content = (lv.content || '').trim();
     if (!content) {
       html += '<div class="empty-chapter">本关尚未创作内容</div>';
+    } else if (lv.paid) {
+      const trial = lv.trialChars || 500;
+      const trialText = content.slice(0, trial);
+      html += mdToWechatHtml(trialText);
+      if (trialText.length < content.length) {
+        html += '<div style="margin:24px 0;padding:20px;background:linear-gradient(135deg,rgba(245,196,81,.12),rgba(245,196,81,.04));border:1px dashed var(--gold);border-radius:8px;text-align:center;">'
+          + '<div style="font-size:18px;margin-bottom:8px;">🔒</div>'
+          + '<div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px;">本章为付费内容</div>'
+          + '<div style="font-size:13px;color:var(--muted);">以上为试读部分（' + trial + '字），付费解锁完整章节 · ¥' + escapeHtml(lv.price || '0.99') + '</div>'
+          + '</div>';
+      }
     } else {
       html += mdToWechatHtml(content);
     }
@@ -2354,7 +2494,7 @@
   function readerCopyAll() {
     if (!readerWorkId) return;
     const w = state.works[readerWorkId];
-    const text = gatherWorkTextOf(w);
+    const text = gatherWorkTextOfWithPaid(w);
     if (!text) { toastKind('无内容可复制', 'warn'); return; }
     const html = mdToWechatHtml(text);
     navigator.clipboard.write([
@@ -2373,7 +2513,7 @@
   function readerExport() {
     if (!readerWorkId) return;
     const w = state.works[readerWorkId];
-    const text = gatherWorkTextOf(w);
+    const text = gatherWorkTextOfWithPaid(w);
     if (!text) { toastKind('无内容可导出', 'warn'); return; }
     const html = mdToWechatHtml(text);
     const a = document.createElement('a');
@@ -2409,6 +2549,7 @@
       showDedai, hideDedai, runDedaiDetect, runDedaiRewrite,
       applyDedaiResult, showDetectResult,
       detectAiFlavor, dedaiLocal, postProcessText, splitLongSentences,
+      showPaidModal, hidePaidModal, savePaidSettings, updatePaidRow, updatePaidPreview,
     };
   }
   

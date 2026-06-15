@@ -600,6 +600,131 @@
   .dedai-compare .col.before textarea { border-color: rgba(245, 196, 81, .4); }
   .dedai-compare .col.after textarea { border-color: rgba(74, 222, 128, .4); }
 
+  /* ===== 12.11 付费章节 ===== */
+  .level.paid { border-color: rgba(245, 196, 81, .35); }
+  .level.paid .badge { background: rgba(245, 196, 81, .12); color: var(--gold); }
+  .paid-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    background: rgba(245, 196, 81, .15);
+    color: var(--gold);
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+  }
+  .paid-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: var(--panel-2);
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .paid-row .status {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .paid-row .status.is-paid { color: var(--gold); }
+  .paid-row button {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .paid-row button:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .paid-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .paid-summary .label { color: var(--muted); font-size: 12px; }
+  .paid-summary .num { font-size: 20px; font-weight: 700; color: var(--gold); }
+  .paid-modal-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .paid-modal-row label {
+    flex: 0 0 80px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .paid-modal-row input {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .paid-modal-row input:focus { border-color: var(--gold); }
+  .paid-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: border-color .12s;
+  }
+  .paid-toggle:hover { border-color: var(--gold); }
+  .paid-toggle.active { border-color: var(--gold); background: rgba(245, 196, 81, .06); }
+  .paid-toggle input { width: 18px; height: 18px; cursor: pointer; }
+  .paid-toggle .label { flex: 1; font-size: 14px; }
+  .paid-toggle .desc { font-size: 12px; color: var(--muted); }
+  .paid-preview {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    max-height: 200px;
+    overflow: auto;
+  }
+  .paid-preview .divider {
+    text-align: center;
+    color: var(--gold);
+    font-weight: 600;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+    margin: 12px 0 4px;
+  }
+  .paid-summary-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    background: rgba(245, 196, 81, .12);
+    color: var(--gold);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+
   #level-footer { padding: 8px 4px 4px; border-top: 1px solid var(--line); margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .side-btn {
     background: transparent; color: var(--muted);
@@ -1138,6 +1263,12 @@
 
     <div class="editor-wrap">
       <textarea id="editor" placeholder="开始你的创作…"></textarea>
+      <div class="paid-row" id="paid-row">
+        <span>付费状态:</span>
+        <span class="status" id="paid-status">免费章节</span>
+        <span style="flex:1"></span>
+        <button id="btn-paid-set" title="设置当前章节付费状态">💰 设置付费</button>
+      </div>
       <div class="actions">
         <button class="btn" id="btn-ai" title="AI 生成(mock)">✨ AI 生成</button>
         <button class="btn ghost" id="btn-inspire" title="获取灵感提示">💡 灵感</button>
@@ -1372,6 +1503,46 @@
       <button class="btn" id="dedai-revert" style="display:none;">↶ 还原</button>
       <button class="btn primary" id="dedai-apply" style="display:none;">✓ 应用到编辑器</button>
       <button class="btn primary" id="dedai-go">🪄 开始改写</button>
+    </div>
+  </div>
+</div>
+
+<!-- 12.11 付费章节设置 弹窗 -->
+<div class="modal-bg" id="paid-modal-bg">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-head">
+      <h3 id="paid-modal-title">💰 付费章节设置</h3>
+      <span class="x" id="paid-modal-close">✕</span>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <div class="paid-summary">
+        <span class="label">本章:</span>
+        <span class="num" id="paid-chapter-name">—</span>
+      </div>
+      <div class="paid-toggle" id="paid-toggle-row">
+        <input type="checkbox" id="paid-checkbox" />
+        <div style="flex:1;">
+          <div class="label">标记为付费章节</div>
+          <div class="desc">开启后,公众号复制时自动插入付费分隔线,阅读模式显示付费提示</div>
+        </div>
+      </div>
+      <div class="paid-modal-row" id="paid-price-row">
+        <label>价格</label>
+        <input type="text" id="paid-price-input" placeholder="¥0.99" />
+      </div>
+      <div class="paid-modal-row" id="paid-trial-row">
+        <label>试读字数</label>
+        <input type="number" id="paid-trial-input" placeholder="500" min="0" step="50" />
+      </div>
+      <div class="paid-preview" id="paid-preview" style="display:none;">
+        <b style="color:var(--muted);">📋 公众号预览效果</b>
+        <div id="paid-preview-content"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button class="btn ghost" id="paid-cancel">取消</button>
+      <button class="btn primary" id="paid-save">💾 保存</button>
     </div>
   </div>
 </div>
