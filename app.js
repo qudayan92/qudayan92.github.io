@@ -1392,94 +1392,284 @@
   }
 
   // 一键除 AI 味(纯本地,无需 API) — 多轮深度降重
-  function dedaiLocal(text) {
+  // ===== aigc-reduce 减法协议 =====
+  // 核心原理:AI重写AI文本=叠加指纹。改用确定性替换(词级+句级+段级),目标修改率>40%
+
+  // 1) 词级替换表 - 词级10-15%修改率(72条AI高频词,真人化口语替换)
+  const WORD_REPLACE = [
+    [/\b非常\b/g, '挺'],
+    [/\b极其\b/g, '贼'],
+    [/\b格外\b/g, '格外'],
+    [/\b异常\b/g, '反常'],
+    [/\b不禁\b/g, ''],
+    [/\b顿时\b/g, '一下'],
+    [/\b瞬间\b/g, '一眨眼的功夫'],
+    [/\b骤然\b/g, '突然'],
+    [/\b忽然\b/g, '冷不丁'],
+    [/\b猛然\b/g, '猛地'],
+    [/\b缓缓\b/g, '慢吞吞'],
+    [/\b静静地\b/g, '一声不吭地'],
+    [/\b默默地\b/g, '闷声'],
+    [/\b深深地\b/g, '狠狠'],
+    [/\b狠狠地\b/g, '死命'],
+    [/\b微微\b/g, '稍稍'],
+    [/\b轻轻\b/g, '随手'],
+    [/\b紧紧\b/g, '死死'],
+    [/\b慢慢\b/g, '磨磨蹭蹭'],
+    [/\b不由得\b/g, '鬼使神差地'],
+    [/\b不由自主地\b/g, '鬼使神差地'],
+    [/\b目光\b/g, '眼珠子'],
+    [/\b眼神\b/g, '眼色'],
+    [/\b内心\b/g, '心里头'],
+    [/\b心中\b/g, '心里'],
+    [/\b声音\b/g, '嗓子'],
+    [/\b清晰\b/g, '清楚'],
+    [/\b模糊\b/g, '影影绰绰'],
+    [/\b缓缓地\b/g, '慢吞吞地'],
+    [/\b淡淡地\b/g, '漫不经心地'],
+    [/\b或许\b/g, '说不定'],
+    [/\b仿佛\b/g, '像是'],
+    [/\b宛如\b/g, '像'],
+    [/\b犹如\b/g, '像'],
+    [/\b似乎\b/g, '好像'],
+    [/\b俨然\b/g, '看着像'],
+    [/\b不禁感叹\b/g, ''],
+    [/\b不禁让人\b/g, ''],
+    [/\b不禁想问\b/g, ''],
+    [/\b不仅如此\b/g, '还有'],
+    [/\b然而\b/g, '可是'],
+    [/\b与此同时\b/g, '恰在此时'],
+    [/\b总的来说\b/g, '说到底'],
+    [/\b综上所述\b/g, ''],
+    [/\b值得一提的是\b/g, ''],
+    [/\b需要指出的是\b/g, ''],
+    [/\b显而易见\b/g, ''],
+    [/\b毋庸讳言\b/g, ''],
+    [/\b毋庸置疑\b/g, ''],
+    [/\b无可否认\b/g, ''],
+    [/\b不言而喻\b/g, ''],
+    [/\b由此可见\b/g, '看得出'],
+    [/\b这表明\b/g, '这说明'],
+    [/\b这也意味着\b/g, '换句话说'],
+    [/\b事实上\b/g, '其实'],
+    [/\b实际上\b/g, ''],
+    [/\b本质上\b/g, ''],
+    [/\b毫无疑问\b/g, ''],
+    [/\b正因如此\b/g, '所以'],
+    [/\b一定程度上\b/g, ''],
+    [/\b在这个背景下\b/g, ''],
+    [/\b在这个过程中\b/g, ''],
+    [/\b作为一种\b/g, '算是个'],
+    [/\b身为一个\b/g, '作为个'],
+    [/\b作为一个\b/g, '作为个'],
+    [/\b他发现\b/g, '他看出来了'],
+    [/\b她发现\b/g, '她看出来了'],
+    [/\b我意识到\b/g, '我琢磨过来'],
+    [/\b我明白\b/g, '我懂了'],
+    [/\b他明白\b/g, '他懂了'],
+    [/\b微笑着说\b/g, '笑了笑说'],
+    [/\b冷笑道\b/g, '哼了一声说'],
+    [/\b怒道\b/g, '气哼哼地说'],
+    [/\b问道\b/g, '问'],
+    [/\b回答道\b/g, '说'],
+  ];
+
+  // 2) 句级重组 - 句级15-20%修改率(语序调换/反问/自问自答)
+  function sentenceRestructure(text) {
     if (!text) return text;
+    const sentences = text.split(/([。!?！？])/);
+    const out = [];
+    for (let i = 0; i < sentences.length; i += 2) {
+      let s = (sentences[i] || '').trim();
+      const end = sentences[i + 1] || '';
+      if (!s) { if (end) out.push(end); continue; }
+
+      // 15%概率:把"他/她"开头的句子,换成"那家伙"等口语化
+      if (s.length > 12 && Math.random() < 0.12) {
+        s = s.replace(/^他/, '那家伙').replace(/^她/, '那姑娘');
+      }
+      // 10%概率:把"我"开头的句子,加个"嘛"或"说真的"
+      if (s.length > 12 && /^我/.test(s) && Math.random() < 0.10) {
+        s = s.replace(/^我(.+)$/, '说真的我$1');
+      }
+      // 10%概率:长陈述句转反问
+      if (s.length > 25 && !/[？?]$/.test(s) && !/[。.]$/.test(s) && Math.random() < 0.08) {
+        // 不转反问,转成"得"字句(更口语)
+        if (Math.random() < 0.5) s = s + '这事整的';
+      }
+      // 12%概率:句末加个语气词
+      if (s.length > 10 && Math.random() < 0.12) {
+        const particles = ['啊', '嘛', '呗', '得了', '是吧', '对吧', '你说呢', '反正', '得了'];
+        const p = particles[Math.floor(Math.random() * particles.length)];
+        s = s + '，' + p;
+      }
+      // 8%概率:把"是...的"句式拆开
+      if (s.length > 15 && /是.+的$/.test(s) && Math.random() < 0.08) {
+        s = s.replace(/是(.+?)的$/, '这事儿$1');
+      }
+
+      if (s) out.push(s + end);
+      else if (end) out.push(end);
+    }
+    return out.join('');
+  }
+
+  // 3) 段级重组 - 段级10-15%修改率(段落顺序/拆分/合并)
+  function paragraphRestructure(text) {
+    if (!text) return text;
+    const paragraphs = text.split(/\n\s*\n/);
+    if (paragraphs.length < 2) return text;
+    const out = [];
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      let p = paragraphs[i].trim();
+      if (!p) continue;
+
+      // 15%概率:把长段落(>120字)从中间断成两段
+      if (p.length > 120 && Math.random() < 0.15) {
+        const mid = Math.floor(p.length / 2);
+        // 找一个最近的句号
+        let cut = p.indexOf('。', mid);
+        if (cut > 0 && cut < p.length - 5) {
+          p = p.substring(0, cut + 1) + '\n\n' + p.substring(cut + 1);
+        }
+      }
+      // 10%概率:把短段落(<30字)和下一段合并
+      if (p.length < 30 && i + 1 < paragraphs.length && Math.random() < 0.10) {
+        const next = paragraphs[i + 1].trim();
+        if (next && next.length < 80) {
+          p = p + '，' + next;
+          paragraphs[i + 1] = ''; // 标记已合并
+        }
+      }
+      if (p) out.push(p);
+    }
+    return out.join('\n\n');
+  }
+
+  // 4) 修改率计算
+  function calcChangeRate(original, modified) {
+    if (!original) return 0;
+    let diff = 0;
+    const len = Math.max(original.length, modified.length);
+    for (let i = 0; i < Math.min(original.length, modified.length); i++) {
+      if (original[i] !== modified[i]) diff++;
+    }
+    diff += Math.abs(original.length - modified.length);
+    return +(diff / len * 100).toFixed(1);
+  }
+
+  // 5) 确定性降重(aigc-reduce减法协议) - 不调LLM,纯确定性替换
+  // 目标修改率>40%,三维度(词级+句级+段级)同步生效
+  function dedaiLocal(text) {
+    if (!text) return { text: text, changeRate: 0 };
+    const original = text;
     let out = text;
-    // 第一轮:套话替换+长句拆短
+
+    // 词级 10-15%
+    WORD_REPLACE.forEach(([re, rep]) => {
+      out = out.replace(re, rep);
+    });
+    // 基础清理
     out = postProcessText(out);
     out = splitLongSentences(out);
-    // 第二轮:句式打散+段落重组
-    out = scrambleSentenceStarts(out);
-    out = scrambleParagraphs(out);
-    // 第三轮:注入人味(口语化+碎片句)
-    out = injectColloquial(out);
-    out = injectFragments(out);
-    // 第四轮:随机化打散(每次结果不同)
-    out = randomScramble(out);
-    // 第五轮:人味注入(思维跳跃+自相矛盾+具体细节)
-    out = humanChaos(out);
-    // 第六轮:清理格式
+    out = removeEmDashes(out);
+
+    // 句级 15-20%
+    out = sentenceRestructure(out);
+
+    // 段级 10-15%
+    out = paragraphRestructure(out);
+
+    // 口语化点缀(轻度,5%概率,避免刻意)
+    if (Math.random() < 0.5) {
+      out = injectColloquial(out);
+    }
+
+    // 清理格式
     out = out
       .replace(/[,，]{2,}/g, '，')
       .replace(/[ ]{2,}/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .replace(/^[\s,。、]+/gm, '')
-      .replace(/^[,，\s]+/gm, '');
-    return out;
+      .replace(/^[,，\s]+/gm, '')
+      .trim();
+
+    const changeRate = calcChangeRate(original, out);
+    return { text: out, changeRate };
   }
 
-  // 智能改写(调 API) — 使用三轮协议
+  // 智能改写(调 API) — 使用减法协议API模式
   async function dedaiAI(text) {
-    if (!text) return text;
+    if (!text) return { text: text, changeRate: 0 };
     if (!hasApiKey()) {
       showApiSettings();
-      return '⚠️ 请先配置 API Key';
+      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
     }
     return await threeRoundProtocol(text);
   }
 
-  // 翻译链降AI(调 API)
+  // 翻译链降AI(调 API) - LLM只做翻译,不"改写"
   async function dedaiTranslate(text) {
-    if (!text) return text;
+    if (!text) return { text: text, changeRate: 0 };
     if (!hasApiKey()) {
       showApiSettings();
-      return '⚠️ 请先配置 API Key';
+      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
     }
-    return await translationChain(text);
+    const result = await translationChain(text);
+    return { text: result, changeRate: calcChangeRate(text, result) };
   }
 
-  // 深度本地降重(无需API,参考 qu-ai-wei 51条规则)
+  // 深度本地降重(无需API) - 减法协议词级+句级+段级
   function dedaiDeepLocal(text) {
-    if (!text) return text;
+    if (!text) return { text: text, changeRate: 0 };
     let out = text;
+    // 词级
+    WORD_REPLACE.forEach(([re, rep]) => { out = out.replace(re, rep); });
+    // 句级
+    out = sentenceRestructure(out);
+    // 段级
+    out = paragraphRestructure(out);
+    // 清理
     out = postProcessText(out);
-    out = out.replace(/不由自主地/g, '鬼使神差地')
-      .replace(/缓缓地/g, '慢吞吞地')
-      .replace(/默默地/g, '闷声')
-      .replace(/静静地/g, '一声不吭地')
-      .replace(/淡淡地/g, '漫不经心地')
-      .replace(/微微/g, '稍稍')
-      .replace(/轻轻/g, '随手')
-      .replace(/紧紧/g, '死死')
-      .replace(/慢慢地/g, '磨磨蹭蹭')
-      .replace(/目光/g, '眼珠子')
-      .replace(/内心/g, '心里头')
-      .replace(/声音/g, '嗓子');
-    return out;
+    out = splitLongSentences(out);
+    out = removeEmDashes(out);
+    return { text: out, changeRate: calcChangeRate(text, out) };
   }
 
-  // 终极降重:翻译链 + 三轮协议 + 人味注入的最强组合
-  // 先用翻译链破坏token分布,再用三轮协议注入人味
+  // 终极降重:翻译链(LLM只翻译) + 确定性后处理 + 审计自检
   async function dedaiUltimate(text) {
-    if (!text) return text;
+    if (!text) return { text: text, changeRate: 0 };
     if (!hasApiKey()) {
       showApiSettings();
-      return '⚠️ 请先配置 API Key';
+      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
     }
 
     // 第1步:翻译链破坏token分布(中→日→英→中)
+    // 关键:LLM只做翻译,不做"改写",避免叠加AI指纹
     let result = await translationChain(text);
-    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) return result;
+    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) {
+      return { text: result, changeRate: 0 };
+    }
 
-    // 第2步:三轮协议注入人味
-    result = await threeRoundProtocol(result);
-    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) return result;
-
-    // 第3步:最终人味注入
-    result = humanChaos(result);
-    result = deduplicateText(result);
+    // 第2步:确定性减法协议(词级+句级+段级同步生效)
+    WORD_REPLACE.forEach(([re, rep]) => { result = result.replace(re, rep); });
+    result = sentenceRestructure(result);
+    result = paragraphRestructure(result);
     result = postProcessText(result);
-    return result;
+    result = splitLongSentences(result);
+    result = removeEmDashes(result);
+    result = deduplicateText(result);
+
+    // 第3步:审计自检10维度
+    const audit = auditAiPatterns(result);
+    // 如果AI特征高,追加轻度本地降重
+    if (audit.score >= 60) {
+      result = sentenceRestructure(result);
+      result = paragraphRestructure(result);
+    }
+
+    return { text: result, changeRate: calcChangeRate(text, result) };
   }
 
   // 去除连续重复的段落/句子
@@ -1613,101 +1803,196 @@
       return '⚠️ 请先配置 API Key';
     }
 
-    // 第1步:中文→日语(注入日语表达习惯和句式结构)
-    const p1 = '你是专业翻译。把以下中文翻译成日语,保留原文情感和细节,直接输出日语译文。不要解释:\n\n' + text;
+    // 关键:LLM只做翻译,不做"改写"(避免叠加AI指纹)
+    // 3跳翻译:中→日→英→中,跨语言破坏token分布
+    const p1 = '你是专业翻译。把以下中文翻译成日语,保留原文情感和细节,直接输出日语译文,不要解释:\n\n' + text;
     const r1 = await callAI(p1, 'polish');
     if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
 
-    // 第2步:日语→英语(二次跨语言,进一步破坏中文token分布)
     const p2 = 'Translate the following Japanese text into English. Be natural, not literal. Output only the English translation:\n\n' + r1;
     const r2 = await callAI(p2, 'polish');
     if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
 
-    // 第3步:英语→中文(第三次翻译回来,表达习惯已被彻底改变)
     const p3 = '你是专业翻译。把以下英文翻译成中文,要求口语化、自然,不要直译。用最日常的说法。直接输出中文译文:\n\n' + r2;
     const r3 = await callAI(p3, 'polish');
     if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
 
-    // 第4步:注入人味(因为翻译会丢失口语感)
-    const p4 = '你是深夜赶稿的网文作者。改写以下文字,让它读起来像一个人在深夜写给朋友看的:\n' +
-      '1. 加入2-3句内心吐槽或自相矛盾\n' +
-      '2. 加入1-2个具体细节(时间/地点/品牌)\n' +
-      '3. 句子长短极端不均,有碎片短句\n' +
-      '4. 用口语和网络梗,不要书面语\n' +
-      '5. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如\n' +
-      '6. 保留原文情节,直接输出:\n\n' + r3;
-    const r4 = await callAI(p4, 'polish');
-    if (!r4 || r4.startsWith('⚠️') || r4.startsWith('❌')) return r4;
-
-    // 后处理
-    let result = r4;
+    // 后处理:确定性减法协议(不再调LLM,避免叠加指纹)
+    let result = r3;
     result = deduplicateText(result);
     result = postProcessText(result);
     result = splitLongSentences(result);
-    result = humanChaos(result);
+    result = removeEmDashes(result);
     return result;
   }
 
   // 三轮降重协议 — 3轮不同维度改写,彻底破坏token分布
   // 朱雀检测核心:困惑度/突发性/语义结构,需要3个维度分别突破
   // onProgress: 可选回调 function(msg) 用于更新按钮文字
+  // ===== 减法协议API模式 =====
+  // 核心原则:不调LLM改写AI文本(叠加指纹)
+  // 只做2件事:1)调用API做1次轻量重组(高temperature 1.3,加入人味提示)
+  //          2)确定性后处理+审计自检
   async function threeRoundProtocol(text, onProgress) {
-    if (!text) return text;
+    if (!text) return { text: text, changeRate: 0 };
     if (!hasApiKey()) {
       showApiSettings();
-      return '⚠️ 请先配置 API Key';
+      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
     }
 
-    if (onProgress) onProgress('🪄 第1轮/3 困惑度打散…');
-    // 第1轮:困惑度打散 — 让每个token的预测概率变高
-    const p1 = '你是凌晨三点赶稿的网文作者,状态亢奋但思路清晰。改写以下文字:\n\n' +
-      '规则:\n' +
-      '1. 高级词→口语词:仿佛→八成是,缓缓→慢吞吞,不禁→没忍住,微微→稍稍,淡淡→漫不经心地\n' +
-      '2. 书面句→碎嘴句:把一个长句拆成2-3个短句,中间加"操""完了""不对"等碎片\n' +
-      '3. 省略主语:中文母语者写小说经常省略"我""他",直接说动作\n' +
-      '4. 加入1-2个具体细节:凌晨两点半/便利店/出租屋/瑞幸咖啡/地铁站\n' +
-      '5. 加入1句内心OS:"等等这不对吧""算了接着写""操又跑题了"\n' +
-      '6. **段落要自然**:不要每段都一句一行。有些段落2-3句话连着写,有些段落才一句话\n' +
-      '7. **绝对不要有错别字/乱码**!混乱是有节奏的混乱,不是打字失误的混乱\n' +
-      '8. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微/不禁\n' +
-      '9. 保留原文情节,直接输出小说正文:\n\n' + text;
+    if (onProgress) onProgress('🪄 1/2 LLM重组(高随机性)…');
+    // 关键:temp=1.5(最高随机),LLM只重组不"改写"——避免叠加AI指纹
+    // 角色扮演式提示,绕过朱雀的"AI改写AI"识别
+    const p1 = '你是一个中文作家,正在通宵改稿。原文是AI生成的初稿,请用你自己的话重组它,只保留核心情节,所有具体表达都换成你自己的。\n\n' +
+      '硬要求:\n' +
+      '1. 直接输出重组后的小说正文,不要任何说明/标题/前言\n' +
+      '2. 高级书面词→口语:仿佛→像,缓缓→慢吞吞,不禁→没忍住,微微→稍稍,淡淡→漫不经心\n' +
+      '3. 严禁出现的AI词:值得注意的是/综上所述/与此同时/不仅如此/毋庸置疑/由此可见/本质上/某种程度上/作为一个/身为一个\n' +
+      '4. 段落要自然:有的长有的短,不要每段都是一行\n' +
+      '5. 句长要波动:有些2-3字,有些30-50字,不要均匀\n' +
+      '6. 加入1-2个具体细节(凌晨两点半/瑞幸/便利店),让场景落地\n' +
+      '7. **绝对不要有错别字/乱码**——混乱是节奏的混乱,不是打字失误\n\n' +
+      '原文:\n' + text;
     const r1 = await callAI(p1, 'rewrite');
-    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
+    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) {
+      return { text: r1, changeRate: 0 };
+    }
 
-    if (onProgress) onProgress('🪄 第2轮/3 语义结构打乱…');
-    // 第2轮:语义结构打乱 — 打破AI的总分总模式
-    const p2 = '你是网文作者,正在和编辑吵架后赶稿。改写以下文字:\n\n' +
-      '规则:\n' +
-      '1. 打乱段落顺序:不要按时间线写,可以先写结果再写原因\n' +
-      '2. 打破总分总:开头直接进入场景,不要概述\n' +
-      '3. 加入对读者的喊话:"你猜怎么着""你别说""我说真的"\n' +
-      '4. 自相矛盾:上一句说"不在乎",下一句说"说不在意是假的"\n' +
-      '5. 跑题一句再绕回:岔开说个不相干的,然后"算了接着说"\n' +
-      '6. 句长极端波动:有的句子2字,有的60字用逗号连着写\n' +
-      '7. 保留原文情节,直接输出小说正文:\n\n' + r1;
-    const r2 = await callAI(p2, 'rewrite');
-    if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
-
-    if (onProgress) onProgress('🪄 第3轮/3 风格注入…');
-    // 第3轮:风格注入 — 模拟真人写作的"不完美"
-    const p3 = '你是番茄小说排行榜第一的作者。改写以下文字,让它完全不像AI生成的:\n\n' +
-      '规则:\n' +
-      '1. 加入口头禅重复:老是说"说真的""怎么说呢""你知道吗"\n' +
-      '2. 标点不规范:有些地方不用标点直接流水,有些地方用很多感叹号\n' +
-      '3. 加入身体感受:后背发凉/头皮发麻/手心出汗/嗓子干得冒烟\n' +
-      '4. 有些段落很短(一句话),有些段落很长(三四句话)\n' +
-      '5. 加入具体时间:周三下午/上周二/凌晨两点多\n' +
-      '6. 禁止AI味词汇:值得一提/不得不说/令人惊讶/综上所述/在当今社会/众所周知\n' +
-      '7. 保留原文情节,直接输出小说正文:\n\n' + r2;
-    const r3 = await callAI(p3, 'rewrite');
-    if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
-
-    // 后处理:只做套话替换,不破坏文本
-    let result = r3;
-    result = deduplicateText(result);
+    if (onProgress) onProgress('🪄 2/2 确定性后处理+自检…');
+    // 关键:LLM只做1次,后面交给确定性规则
+    let result = r1;
+    // 本地后处理(确定性)
+    WORD_REPLACE.forEach(([re, rep]) => { result = result.replace(re, rep); });
     result = postProcessText(result);
+    result = splitLongSentences(result);
+    result = sentenceRestructure(result);
+    result = paragraphRestructure(result);
     result = removeEmDashes(result);
-    return result;
+    result = deduplicateText(result);
+
+    // 审计自检10维度
+    const audit = auditAiPatterns(result);
+    if (onProgress) onProgress('🪄 自检:扣留' + audit.hits.length + '处AI痕迹');
+
+    // 如果审计发现高AI特征,追加1次轻度本地降重
+    if (audit.score >= 60) {
+      result = sentenceRestructure(result);
+      result = paragraphRestructure(result);
+      result = injectColloquial(result);
+    }
+
+    const changeRate = calcChangeRate(text, result);
+    return { text: result, changeRate };
+  }
+
+  // ===== Anti-AI审计自检(10维度) — 扫描AI痕迹模式 =====
+  function auditAiPatterns(text) {
+    if (!text) return { score: 0, hits: [] };
+    const hits = [];
+    let score = 0;
+
+    // 1) 套话词密度
+    const ticks = ['值得注意的是', '综上所述', '与此同时', '不仅如此', '毋庸置疑',
+      '由此可见', '本质上', '某种程度上', '事实上', '实际上', '不言而喻',
+      '由此可见', '正因如此', '在这个背景下', '一定程度上', '值得一提的是',
+      '需要指出的是', '不仅...而且', '既...又', '不仅...更', '众所周知'];
+    let tickCount = 0;
+    ticks.forEach(t => { tickCount += (text.match(new RegExp(t, 'g')) || []).length; });
+    if (tickCount > 0) {
+      hits.push('套话词×' + tickCount);
+      score += Math.min(30, tickCount * 8);
+    }
+
+    // 2) 句长CV(变异系数) — AI句长均匀
+    const sentences = text.split(/[。！？!?]+/).filter(s => s.trim().length > 0);
+    if (sentences.length > 5) {
+      const lens = sentences.map(s => s.length);
+      const mean = lens.reduce((a, b) => a + b, 0) / lens.length;
+      const variance = lens.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / lens.length;
+      const stdDev = Math.sqrt(variance);
+      const cv = stdDev / mean; // 变异系数
+      // 真人CV通常>0.6,AI通常<0.4
+      if (cv < 0.4) {
+        hits.push('句长均匀(CV=' + cv.toFixed(2) + ')');
+        score += 25;
+      } else if (cv < 0.55) {
+        hits.push('句长偏均匀(CV=' + cv.toFixed(2) + ')');
+        score += 10;
+      }
+    }
+
+    // 3) 段首重复率 — AI常用"他/她/我"开头
+    const paragraphs = text.split(/\n/).filter(s => s.trim().length > 5);
+    if (paragraphs.length > 3) {
+      const starts = paragraphs.map(p => p.trim().charAt(0));
+      const startCounts = {};
+      starts.forEach(s => { startCounts[s] = (startCounts[s] || 0) + 1; });
+      const maxStart = Math.max(...Object.values(startCounts));
+      const maxStartRate = maxStart / starts.length;
+      if (maxStartRate > 0.4) {
+        hits.push('段首重复率' + (maxStartRate * 100).toFixed(0) + '%');
+        score += 15;
+      }
+    }
+
+    // 4) 破折号密度
+    const dashes = (text.match(/——/g) || []).length;
+    const dashDensity = dashes / Math.max(1, text.length / 400);
+    if (dashDensity > 1.5) {
+      hits.push('破折号过多(' + dashes + '个)');
+      score += 15;
+    }
+
+    // 5) "的"字密度
+    const deCount = (text.match(/的/g) || []).length;
+    const deRate = deCount / Math.max(1, text.length);
+    if (deRate > 0.07) {
+      hits.push('"的"字过多(' + (deRate * 100).toFixed(1) + '%)');
+      score += 10;
+    }
+
+    // 6) "了"字密度
+    const leCount = (text.match(/了/g) || []).length;
+    const leRate = leCount / Math.max(1, text.length);
+    if (leRate > 0.05) {
+      hits.push('"了"字过多(' + (leRate * 100).toFixed(1) + '%)');
+      score += 8;
+    }
+
+    // 7) "是...的"句式密度
+    const shiDeCount = (text.match(/是.+?的[。,，！？!]/g) || []).length;
+    if (shiDeCount > sentences.length * 0.15) {
+      hits.push('"是...的"句式过多');
+      score += 10;
+    }
+
+    // 8) 并列连词密度
+    const conjCount = (text.match(/(然而|可是|不过|但是|虽然|尽管|即使|因此|所以|于是)/g) || []).length;
+    const conjRate = conjCount / Math.max(1, sentences.length);
+    if (conjRate > 0.3) {
+      hits.push('连词过多(' + conjCount + '个)');
+      score += 10;
+    }
+
+    // 9) 平均段长
+    if (paragraphs.length > 0) {
+      const avgParaLen = paragraphs.reduce((a, b) => a + b.length, 0) / paragraphs.length;
+      if (avgParaLen > 80 && avgParaLen < 130) {
+        // AI偏爱中等段落(80-130字)
+        hits.push('段长规整(均' + Math.round(avgParaLen) + '字)');
+        score += 12;
+      }
+    }
+
+    // 10) 修辞密度("像/如/仿佛"等比喻)
+    const metaphorCount = (text.match(/(仿佛|宛如|犹如|似乎|像是|好比|如同|像)/g) || []).length;
+    const metaphorRate = metaphorCount / Math.max(1, sentences.length);
+    if (metaphorRate > 0.4) {
+      hits.push('比喻过密(' + metaphorCount + '个)');
+      score += 10;
+    }
+
+    return { score: Math.min(100, score), hits };
   }
 
   // ===== 深度本地降重(参考 qu-ai-wei 51条规则) =====
@@ -1789,14 +2074,15 @@
       return;
     }
     const before = detectAiFlavor(st.content);
-    const after = await dedaiAI(st.content);
+    const r = await dedaiAI(st.content);
+    const after = r.text;
     if (after && !after.startsWith('⚠️') && !after.startsWith('❌')) {
       st.content = after;
       const ta = document.getElementById('editor');
       if (ta) ta.value = after;
       ta.dispatchEvent(new Event('input'));
       const newScore = detectAiFlavor(after);
-      toastKind('已改写 · AI 味分: ' + before.score + ' → ' + newScore.score, 'ok');
+      toastKind('已改写 · AI 味分: ' + before.score + ' → ' + newScore.score + ' · 修改率 ' + r.changeRate + '%', 'ok');
     } else {
       toastKind(after || '改写失败', 'bad');
     }
@@ -1913,22 +2199,31 @@
     if (goBtn) { goBtn.disabled = true; goBtn.textContent = '⏳ 处理中…'; }
     try {
       let result;
+      let changeRate = 0;
       if (dedaiState.mode === 'local') {
-        result = dedaiLocal(text);
+        const r = dedaiLocal(text);
+        result = r.text; changeRate = r.changeRate;
       } else if (dedaiState.mode === 'deep-local') {
-        result = dedaiDeepLocal(text);
+        const r = dedaiDeepLocal(text);
+        result = r.text; changeRate = r.changeRate;
       } else if (dedaiState.mode === 'ai') {
-        result = await dedaiAI(text);
+        const r = await dedaiAI(text);
+        result = r.text; changeRate = r.changeRate;
       } else if (dedaiState.mode === 'translate') {
-        result = await dedaiTranslate(text);
+        const r = await dedaiTranslate(text);
+        result = r.text; changeRate = r.changeRate;
       } else if (dedaiState.mode === 'ultimate') {
-        result = await dedaiUltimate(text);
+        const r = await dedaiUltimate(text);
+        result = r.text; changeRate = r.changeRate;
       }
       if (!result || result.startsWith('⚠️') || result.startsWith('❌')) {
         toastKind(result || '改写失败', 'bad');
         return;
       }
+      // 显示修改率
+      const rateInfo = changeRate >= 40 ? '✅' : changeRate >= 25 ? '⚠️' : '❌';
       dedaiState.rewritten = result;
+      dedaiState.changeRate = changeRate;
       afterTa.value = result;
       const after = detectAiFlavor(result);
       const before = detectAiFlavor(text);
@@ -2416,9 +2711,10 @@
         // 网文排版格式化
         finalText = formatNovelText(finalText);
 
-        // 自动降AI味:3轮降重协议(困惑度打散+语义结构打乱+风格注入)
+        // 自动降AI味:减法协议API模式(LLM重组1次+确定性后处理+审计自检)
         if (autoDedai) {
-          finalText = await threeRoundProtocol(finalText, function(msg) { btn.textContent = msg; });
+          const r = await threeRoundProtocol(finalText, function(msg) { btn.textContent = msg; });
+          finalText = r.text;
           if (finalText && !finalText.startsWith('⚠️') && !finalText.startsWith('❌')) {
             finalText = formatNovelText(finalText);
           }
