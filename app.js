@@ -1620,17 +1620,17 @@
       const end = sentences[i + 1] || '';
       if (!s) { if (end) out.push(end); continue; }
 
-      // 18%概率:把"他/她"开头的句子,换成"那家伙"等口语化
-      if (s.length > 12 && Math.random() < 0.18) {
+      // 10%概率:把"他/她"开头的句子口语化(降低概率)
+      if (s.length > 12 && Math.random() < 0.10) {
         s = s.replace(/^他/, '那家伙').replace(/^她/, '那姑娘');
       }
       // 12%概率:把"我"开头的句子,加个"嘛"或"说真的"
       if (s.length > 12 && /^我/.test(s) && Math.random() < 0.12) {
         s = s.replace(/^我(.+)$/, '说真的我$1');
       }
-      // 15%概率:句末加个语气词
-      if (s.length > 10 && Math.random() < 0.15) {
-        const particles = ['啊', '嘛', '呗', '得了', '是吧', '对吧', '你说呢', '反正', '得了', '不是', '这就'];
+      // 8%概率:句末加个语气词(降低概率,避免不自然)
+      if (s.length > 10 && Math.random() < 0.08) {
+        const particles = ['啊', '嘛', '呢', '吧', '呗', '是吧', '对吧', '你说呢', '反正'];
         const p = particles[Math.floor(Math.random() * particles.length)];
         s = s + '，' + p;
       }
@@ -1649,9 +1649,9 @@
           });
         }
       }
-      // 8%概率:在句首加个"嘿"或"得"
-      if (s.length > 10 && Math.random() < 0.08 && !/^[嘿得哎哦啊]/.test(s)) {
-        const starts = ['嘿', '得', '哎', '你说', '这话', '反正', '这事儿'];
+      // 5%概率:在句首加口语连接词
+      if (s.length > 10 && Math.random() < 0.05 && !/^[嘿得哎哦啊]/.test(s)) {
+        const starts = ['嘿', '哎', '你说', '反正', '这事儿', '说实话', '讲道理'];
         const start = starts[Math.floor(Math.random() * starts.length)];
         s = start + '，' + s;
       }
@@ -2130,9 +2130,8 @@
     }
 
     // 12) 错别字/音译错误检测 — LLM翻译会污染
-    const typoPatterns = [/[一-龥]的[一-龥][一-龥][一-龥]了[一-龥]/g]; // 占位
-    // 简化:检测连续3个生僻字组合
-    const rareCharSeq = (text.match(/[㐀-䶿豈-﫿]/g) || []).length;
+    // 检测真正的生僻字:CJK扩展A区(U+3400-U+4DBF)及扩展B+区
+    const rareCharSeq = (text.match(/[\u{3400}-\u{4DBF}\u{20000}-\u{2A6DF}]/gu) || []).length;
     if (rareCharSeq > text.length * 0.02) {
       hits.push('生僻字过多(疑似翻译污染)');
       score += 15;
