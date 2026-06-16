@@ -772,6 +772,24 @@
         '- 至少2个句子超过50字,中间用逗号不断连接,像说话一样不换气\n' +
         '- 连续三句话的长度差必须超过20字\n' +
         '- 偶尔来一个没有标点的流水账:我跟你说这事真的气死我了当时我整个人都傻了站在那里半天没动\n\n' +
+        '【标点铁律——破折号是AI特征!】\n' +
+        '- **绝对不要用"——"破折号**!这是AI最明显的特征,真人很少用\n' +
+        '- 改用句号、分号、或者直接换行\n' +
+        '- "我愣住了。这就是我。"优于"我愣住了——这就是我。"\n' +
+        '- "你猜怎么着。我跟你说啊。"优于"你猜怎么着,跟你说啊——"\n' +
+        '- 长句之间用句号断开,不要用逗号连写超过3个\n\n' +
+        '【对话强制30-40%】\n' +
+        '- 每写300字必须有2-3句对话,用引号包裹\n' +
+        '- 角色说话前先写动作:他放下筷子。"你吃了吗。"\n' +
+        '- 真人对话很短:"滚。""行。""我操。""不知道。"\n' +
+        '- 对话内也用句号,不用逗号:"我走了。别找我。"\n' +
+        '- 对话单独成段,前后各空一行\n\n' +
+        '【密集小动作描写】\n' +
+        '- 真人小说每个场景至少有3-4个具体小动作\n' +
+        '- 他掏出手机看了三秒,锁屏,又解锁。他把烟掐了。杯子磕了下桌沿。\n' +
+        '- 她头也没抬,筷子戳着米饭,嚼着嚼着忽然停了。\n' +
+        '- 动作要有节奏感:看一眼/顿一下/然后/又/再\n' +
+        '- 重点描写手、脚、眼睛、呼吸等具体部位\n\n' +
         '【词汇——用最土最随便的说法】\n' +
         '- 禁止一切书面语:"然而"换成"可是","因此"换成"所以","尽管"换成"虽说"\n' +
         '- 用网络梗和口头禅:好家伙/真有你的/离谱/麻了/裂开/蚌埠住了/无语/绝绝子\n' +
@@ -783,7 +801,7 @@
         '- 加入内心OS:写到一半突然来一句"等等,这么说好像也不对"\n' +
         '- 加入对读者的喊话:"你猜怎么着""你别说""我说真的"\n' +
         '- 段落长度极度不均:有的段落就一个字"操",有的段落占半页\n\n' +
-        '禁止出现:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见\n\n' +
+        '禁止出现:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见/——\n\n' +
         '保留原文情节,只改写法。直接输出,不加任何说明。';
     } else if (mode === 'polish') {
       systemPrompt = '你是深夜赶稿的网文作者。用户写了一段初稿,你只做微调。保留95%原文。只改错别字和明显语病。不要加任何AI套话。直接输出。';
@@ -796,7 +814,10 @@
         '5. 段落之间不用逻辑过渡,想跳就跳\n' +
         '6. 禁止:值得注意的是/不得不说/综上所述/仿佛/宛如/犹如\n' +
         '7. 保持原文风格,续写300-500字\n' +
-        '8. 直接输出,不加前缀说明';
+        '8. 直接输出,不加前缀说明\n\n' +
+        '【标点铁律】绝对不要用破折号"——",改用句号或换行。真人很少用破折号。\n' +
+        '【对话强制30%】每300字至少2-3句对话。对话内用句号不用逗号。\n' +
+        '【密集小动作】每个场景至少3-4个具体小动作描写(手/脚/眼睛/呼吸)。';
     }
 
     try {
@@ -951,6 +972,22 @@
       }
     }
     return out.join('');
+  }
+
+  // 破折号清除:破折号是AI最明显的特征,真人很少用
+  // 每200字最多1个破折号,超过的替换为句号+换行
+  function removeEmDashes(text) {
+    if (!text) return text;
+    const maxAllowed = Math.max(1, Math.floor(text.length / 200));
+    const matches = text.match(/——/g);
+    if (!matches || matches.length <= maxAllowed) return text;
+    // 保留前maxAllowed个,其余替换为句号
+    let count = 0;
+    return text.replace(/——/g, function() {
+      count++;
+      if (count <= maxAllowed) return '——';
+      return '。\n';
+    });
   }
 
   // ===== 深度降重:人味模拟 =====
@@ -1254,6 +1291,87 @@
   // ===== 人味注入引擎:模拟真人写作的"不完美" =====
   // 朱雀检测的核心是困惑度+突发性+语义结构
   // 真人写作的特征:思维跳跃/自相矛盾/口语化/具体细节/碎片句/重复口头禅
+
+  // 注入对话:如果对话占比低于30%,在适当位置插入简短对话
+  function injectDialogue(text) {
+    if (!text || text.length < 100) return text;
+    // 计算当前对话占比
+    const dialogues = (text.match(/["「『"][^"」』"]{2,}["」』"]/g) || []).length;
+    const totalSentences = (text.match(/[。！？]/g) || []).length;
+    const ratio = dialogues / Math.max(1, totalSentences);
+    if (ratio >= 0.25) return text; // 已经有足够对话
+
+    // 简短对话模板(短句为主,符合真人风格)
+    const shortDialogues = [
+      '"滚。"', '"行。"', '"不知道。"', '"我操。"', '"你说什么?"',
+      '"得了吧。"', '"然后呢。"', '"嗯。"', '"哎。"', '"唉。"',
+      '"你猜。"', '"废话。"', '"是是是。"', '"我懂我懂。"', '"你妈的。"',
+      '"行行行。"', '"随便。"', '"我不管。"', '"你自己看着办。"', '"关我屁事。"',
+      '"闭嘴。"', '"滚蛋。"', '"神经病。"', '"你有病吧。"', '"算我求你了。"',
+      '"别说了。"', '"然后呢?"', '"然后呢。"', '"所以呢。"', '"所以呢?"',
+    ];
+    // 需要补充的对话数
+    const need = Math.max(2, Math.floor(text.length / 150));
+    let injected = 0;
+    let result = text;
+
+    // 在每个段落中寻找插入点(找到长度合适的句号后)
+    const sentences = result.split(/([。！？])/);
+    const out = [];
+    for (let i = 0; i < sentences.length; i += 2) {
+      out.push(sentences[i] || '');
+      if (i + 1 < sentences.length) out.push(sentences[i + 1] || '');
+      // 每隔2句插入一个对话(直到达到need)
+      if (injected < need && (i / 2) % 3 === 2 && (sentences[i] || '').length > 20) {
+        const dlg = shortDialogues[Math.floor(Math.random() * shortDialogues.length)];
+        out.push(dlg);
+        injected++;
+      }
+    }
+    return out.join('');
+  }
+
+  // 注入密集小动作:真人小说每个场景有3-4个具体小动作
+  function injectDenseActions(text) {
+    if (!text || text.length < 200) return text;
+    // 现有动作密度检测(动词+名词组合,如"他拿起手机")
+    const actions = (text.match(/(拿起|放下|掏出|锁屏|解锁|点了|点了下|戳了|掐了|磕了|蹭了|揉了揉|搓了搓|叹了口气|咽了口|摇了摇头|点了根烟|喝了口|咬了口|嚼了嚼|吞了吞|皱了皱眉)/g) || []).length;
+    if (actions >= 3) return text; // 动作密度已经够了
+
+    const actionSnippets = [
+      '他掏出手机,看了一下时间,锁屏,又解锁。',
+      '她头也没抬,筷子戳着米饭,嚼着嚼着忽然停了。',
+      '他点了根烟,吸了一口,又掐了。',
+      '他揉了揉眉心,叹了口气,没说话。',
+      '她端起杯子磕了下桌沿,一口闷了。',
+      '他把烟头摁灭在易拉罐里,手指头烫了下。',
+      '他盯了半天屏幕,眨了眨眼,才发现眼睛干得发疼。',
+      '她咽了口唾沫,嗓子里发紧。',
+      '他下意识攥了攥拳,又松开了。',
+      '她摇摇头,把手机翻过去扣在桌上。',
+      '他摸了摸口袋,发现没带打火机。',
+      '她靠着椅背,脚在地上蹭了两下。',
+      '他喝了一大口,呛了一下,咳了两声。',
+      '她咬了下嘴唇,没说出口。',
+    ];
+    // 补充1-2个动作
+    const need = 2 - Math.floor(actions / 2);
+    if (need <= 0) return text;
+    const sentences = text.split(/([。！？])/);
+    const out = [];
+    let injected = 0;
+    for (let i = 0; i < sentences.length; i += 2) {
+      out.push(sentences[i] || '');
+      if (i + 1 < sentences.length) out.push(sentences[i + 1] || '');
+      if (injected < need && i > 4 && (i / 2) % 5 === 0 && (sentences[i] || '').length > 30) {
+        const snip = actionSnippets[Math.floor(Math.random() * actionSnippets.length)];
+        out.push(snip);
+        injected++;
+      }
+    }
+    return out.join('');
+  }
+
   function humanChaos(text) {
     if (!text || text.length < 50) return text;
     let out = text;
@@ -1438,6 +1556,10 @@
       .replace(/目光/g, '眼珠子')
       .replace(/内心/g, '心里头')
       .replace(/声音/g, '嗓子');
+    // 清除AI特征:破折号+补充对话+动作
+    out = removeEmDashes(out);
+    out = injectDialogue(out);
+    out = injectDenseActions(out);
     return out;
   }
 
@@ -1641,7 +1763,7 @@
       return '⚠️ 请先配置 API Key';
     }
 
-    if (onProgress) onProgress('🪄 第1轮/3 困惑度打散…');
+    if (onProgress) onProgress('🪄 第1轮/4 困惑度打散…');
     // 第1轮:困惑度打散 — 让每个token的预测概率变高
     const p1 = '你是凌晨三点赶稿的网文作者,赶着更新。改写以下文字:\n\n' +
       '规则:\n' +
@@ -1650,12 +1772,12 @@
       '3. 省略主语:中文母语者写小说经常省略"我""他",直接说动作\n' +
       '4. 加入1-2个具体细节:凌晨两点半/便利店/出租屋/瑞幸咖啡/地铁站\n' +
       '5. 加入1句内心OS:"等等这不对吧""算了接着写""操又跑题了"\n' +
-      '6. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微/不禁\n' +
+      '6. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微/不禁/——\n' +
       '7. 保留原文情节,直接输出小说正文:\n\n' + text;
     const r1 = await callAI(p1, 'rewrite');
     if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
 
-    if (onProgress) onProgress('🪄 第2轮/3 语义结构打乱…');
+    if (onProgress) onProgress('🪄 第2轮/4 语义结构打乱…');
     // 第2轮:语义结构打乱 — 打破AI的总分总模式
     const p2 = '你是网文作者,正在和编辑吵架后赶稿。改写以下文字:\n\n' +
       '规则:\n' +
@@ -1664,29 +1786,47 @@
       '3. 加入对读者的喊话:"你猜怎么着""你别说""我说真的"\n' +
       '4. 自相矛盾:上一句说"不在乎",下一句说"说不在意是假的"\n' +
       '5. 跑题一句再绕回:岔开说个不相干的,然后"算了接着说"\n' +
-      '6. 句长极端波动:有的句子2字,有的60字用逗号连着写\n' +
-      '7. 保留原文情节,直接输出小说正文:\n\n' + r1;
+      '6. 句长极端波动:有的句子2字,有的60字用句号断开\n' +
+      '7. **绝对不要用破折号"——"**!真人很少用,改用句号或换行\n' +
+      '8. 保留原文情节,直接输出小说正文:\n\n' + r1;
     const r2 = await callAI(p2, 'rewrite');
     if (!r2 || r2.startsWith('⚠️') || r2.startsWith('❌')) return r2;
 
-    if (onProgress) onProgress('🪄 第3轮/3 风格注入…');
-    // 第3轮:风格注入 — 模拟真人写作的"不完美"
-    const p3 = '你是番茄小说排行榜第一的作者。改写以下文字,让它完全不像AI生成的:\n\n' +
+    if (onProgress) onProgress('🪄 第3轮/4 对话+动作密度…');
+    // 第3轮:对话+小动作密度提升 — 真人小说30%对话+3-4个/场景动作
+    const p3 = '你是番茄小说排行榜第一的作者。改写以下文字,确保对话和动作密度:\n\n' +
       '规则:\n' +
-      '1. 加入口头禅重复:老是说"说真的""怎么说呢""你知道吗"\n' +
-      '2. 标点不规范:有些地方不用标点直接流水,有些地方用很多感叹号\n' +
-      '3. 加入身体感受:后背发凉/头皮发麻/手心出汗/嗓子干得冒烟\n' +
-      '4. 有些段落很短(一句话),有些段落很长(三四句话)\n' +
-      '5. 加入具体时间:周三下午/上周二/凌晨两点多\n' +
-      '6. 禁止AI味词汇:值得一提/不得不说/令人惊讶/综上所述/在当今社会/众所周知\n' +
+      '1. 对话占比必须30%以上:每300字至少2-3句对话,用引号包裹\n' +
+      '2. 真人对话很短:"滚。""行。""我操。""不知道。""你猜。"\n' +
+      '3. 每个场景必须有3-4个具体小动作(手/脚/眼睛/呼吸):掏出手机,看了一下,锁屏,又解锁\n' +
+      '4. 对话内用句号不用逗号:"我走了。别找我。"\n' +
+      '5. 动作要有节奏感:看一眼/顿一下/然后/又/再\n' +
+      '6. **绝对不要用破折号"——"**!改用句号\n' +
       '7. 保留原文情节,直接输出小说正文:\n\n' + r2;
     const r3 = await callAI(p3, 'rewrite');
     if (!r3 || r3.startsWith('⚠️') || r3.startsWith('❌')) return r3;
 
-    // 后处理:只做套话替换,不破坏文本
-    let result = r3;
+    if (onProgress) onProgress('🪄 第4轮/4 风格注入…');
+    // 第4轮:风格注入 — 模拟真人写作的"不完美"
+    const p4 = '你是网文作者,凌晨三点刚被编辑催稿。改写以下文字,让它完全不像AI生成的:\n\n' +
+      '规则:\n' +
+      '1. 加入口头禅重复:老是说"说真的""怎么说呢""你知道吗"\n' +
+      '2. 标点多样化:用。!?……。不要连用逗号超过3个\n' +
+      '3. 加入身体感受:后背发凉/头皮发麻/手心出汗/嗓子干得冒烟\n' +
+      '4. 有些段落很短(一句话),有些段落很长(三四句话)\n' +
+      '5. 加入具体时间:周三下午/上周二/凌晨两点多\n' +
+      '6. 禁止AI味词汇+破折号:值得一提/不得不说/令人惊讶/综上所述/在当今社会/众所周知/——\n' +
+      '7. 保留原文情节,直接输出小说正文:\n\n' + r3;
+    const r4 = await callAI(p4, 'rewrite');
+    if (!r4 || r4.startsWith('⚠️') || r4.startsWith('❌')) return r4;
+
+    // 后处理:本地强化(破折号清除+对话+动作)
+    let result = r4;
     result = deduplicateText(result);
     result = postProcessText(result);
+    result = removeEmDashes(result);
+    result = injectDialogue(result);
+    result = injectDenseActions(result);
     return result;
   }
 
@@ -3501,7 +3641,7 @@
       openReader, hideReader, exportAllShowcase,
       showDedai, hideDedai, runDedaiDetect, runDedaiRewrite,
       applyDedaiResult, showDetectResult,
-      detectAiFlavor, dedaiLocal, dedaiUltimate, postProcessText, splitLongSentences, polishHuman, deduplicateText,
+      detectAiFlavor, dedaiLocal, dedaiUltimate, postProcessText, splitLongSentences, polishHuman, deduplicateText, removeEmDashes, injectDialogue, injectDenseActions,
       showPaidModal, hidePaidModal, savePaidSettings, updatePaidRow, updatePaidPreview,
       nqDialog, nqAlert, nqConfirm,
       formatNovelText,
