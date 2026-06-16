@@ -953,11 +953,11 @@
     return out.join('');
   }
 
-  // 破折号轻度清除:每300字最多1个破折号,过多的替换为句号
-  // 不强求清零,保留少量"自然用法"
+  // 破折号清除:每400字最多1个破折号,过多的替换为句号
+  // 破折号是AI最明显的特征,真人很少用
   function removeEmDashes(text) {
     if (!text) return text;
-    const maxAllowed = Math.max(1, Math.floor(text.length / 300));
+    const maxAllowed = Math.max(1, Math.floor(text.length / 400));
     const matches = text.match(/——/g);
     if (!matches || matches.length <= maxAllowed) return text;
     let count = 0;
@@ -1665,8 +1665,9 @@
       '3. 省略主语:中文母语者写小说经常省略"我""他",直接说动作\n' +
       '4. 加入1-2个具体细节:凌晨两点半/便利店/出租屋/瑞幸咖啡/地铁站\n' +
       '5. 加入1句内心OS:"等等这不对吧""算了接着写""操又跑题了"\n' +
-      '6. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微/不禁\n' +
-      '7. 保留原文情节,直接输出小说正文:\n\n' + text;
+      '6. **段落要自然**:不要每段都一句一行。有些段落2-3句话连着写,有些段落才一句话\n' +
+      '7. 禁止:值得注意的是/综上所述/仿佛/宛如/犹如/似乎/缓缓/淡淡/微微/不禁\n' +
+      '8. 保留原文情节,直接输出小说正文:\n\n' + text;
     const r1 = await callAI(p1, 'rewrite');
     if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) return r1;
 
