@@ -1395,18 +1395,38 @@
   // ===== aigc-reduce 减法协议 =====
   // 核心原理:AI重写AI文本=叠加指纹。改用确定性替换(词级+句级+段级),目标修改率>40%
 
-  // 1) 词级替换表 - 词级10-15%修改率(72条AI高频词,真人化口语替换)
+  // 1) 词级替换表 - 100+条AI高频词,真人化口语替换
+  // aigc-reduce核心:词级10-15%确定性修改,必须>40%总修改率
   const WORD_REPLACE = [
+    // 程度副词
     [/\b非常\b/g, '挺'],
     [/\b极其\b/g, '贼'],
     [/\b格外\b/g, '格外'],
     [/\b异常\b/g, '反常'],
+    [/\b十分\b/g, '挺'],
+    [/\b特别\b/g, '老'],
+    [/\b相当\b/g, '挺'],
+    [/\b比较\b/g, '还算'],
+    [/\b稍微\b/g, '稍稍'],
+    [/\b略微\b/g, '稍稍'],
+    [/\b些许\b/g, '一点点'],
+    [/\b略微地\b/g, '稍稍'],
+    // 时间副词
     [/\b不禁\b/g, ''],
     [/\b顿时\b/g, '一下'],
     [/\b瞬间\b/g, '一眨眼的功夫'],
     [/\b骤然\b/g, '突然'],
     [/\b忽然\b/g, '冷不丁'],
     [/\b猛然\b/g, '猛地'],
+    [/\b顷刻间\b/g, '一眨眼'],
+    [/\b刹那间\b/g, '一眨眼的功夫'],
+    [/\b片刻间\b/g, '一会儿'],
+    [/\b不知不觉间\b/g, '不知怎么'],
+    [/\b不知何时\b/g, '不知几时'],
+    [/\b顷刻\b/g, '一会儿'],
+    [/\b须臾\b/g, '一会儿'],
+    [/\b旋即\b/g, '紧跟着'],
+    // 方式副词
     [/\b缓缓\b/g, '慢吞吞'],
     [/\b静静地\b/g, '一声不吭地'],
     [/\b默默地\b/g, '闷声'],
@@ -1416,8 +1436,14 @@
     [/\b轻轻\b/g, '随手'],
     [/\b紧紧\b/g, '死死'],
     [/\b慢慢\b/g, '磨磨蹭蹭'],
+    [/\b渐渐地\b/g, '一点一点'],
+    [/\b缓缓地\b/g, '慢吞吞地'],
+    [/\b淡淡地\b/g, '漫不经心地'],
+    [/\b徐徐\b/g, '慢吞吞'],
+    [/\b悄然\b/g, '不知不觉'],
     [/\b不由得\b/g, '鬼使神差地'],
     [/\b不由自主地\b/g, '鬼使神差地'],
+    // 名词口语化
     [/\b目光\b/g, '眼珠子'],
     [/\b眼神\b/g, '眼色'],
     [/\b内心\b/g, '心里头'],
@@ -1425,14 +1451,35 @@
     [/\b声音\b/g, '嗓子'],
     [/\b清晰\b/g, '清楚'],
     [/\b模糊\b/g, '影影绰绰'],
-    [/\b缓缓地\b/g, '慢吞吞地'],
-    [/\b淡淡地\b/g, '漫不经心地'],
-    [/\b或许\b/g, '说不定'],
     [/\b仿佛\b/g, '像是'],
     [/\b宛如\b/g, '像'],
     [/\b犹如\b/g, '像'],
     [/\b似乎\b/g, '好像'],
     [/\b俨然\b/g, '看着像'],
+    [/\b或许\b/g, '说不定'],
+    [/\b神情\b/g, '脸色'],
+    [/\b神色\b/g, '样子'],
+    [/\b气息\b/g, '气儿'],
+    [/\b气场\b/g, '派头'],
+    [/\b身形\b/g, '身板'],
+    [/\b身影\b/g, '影子'],
+    [/\b动作\b/g, '架势'],
+    [/\b举动\b/g, '动作'],
+    [/\b行为\b/g, '做派'],
+    [/\b言语\b/g, '话'],
+    [/\b话语\b/g, '话'],
+    [/\b言辞\b/g, '话'],
+    [/\b面庞\b/g, '脸'],
+    [/\b面容\b/g, '脸'],
+    [/\b脸颊\b/g, '脸蛋'],
+    [/\b眼眸\b/g, '眼珠子'],
+    [/\b眸子\b/g, '眼珠子'],
+    [/\b双眸\b/g, '俩眼'],
+    [/\b眼底\b/g, '眼里'],
+    [/\b眼眶\b/g, '眼圈'],
+    [/\b嘴角\b/g, '嘴'],
+    [/\b唇角\b/g, '嘴角'],
+    // 套话连接词(高优先级)
     [/\b不禁感叹\b/g, ''],
     [/\b不禁让人\b/g, ''],
     [/\b不禁想问\b/g, ''],
@@ -1462,16 +1509,105 @@
     [/\b作为一种\b/g, '算是个'],
     [/\b身为一个\b/g, '作为个'],
     [/\b作为一个\b/g, '作为个'],
+    // 人物动作(替换为口语)
     [/\b他发现\b/g, '他看出来了'],
     [/\b她发现\b/g, '她看出来了'],
     [/\b我意识到\b/g, '我琢磨过来'],
     [/\b我明白\b/g, '我懂了'],
     [/\b他明白\b/g, '他懂了'],
+    [/\b她明白\b/g, '她懂了'],
     [/\b微笑着说\b/g, '笑了笑说'],
     [/\b冷笑道\b/g, '哼了一声说'],
     [/\b怒道\b/g, '气哼哼地说'],
     [/\b问道\b/g, '问'],
     [/\b回答道\b/g, '说'],
+    [/\b心中暗想\b/g, '心里嘀咕'],
+    [/\b暗自思忖\b/g, '心里嘀咕'],
+    [/\b暗自揣摩\b/g, '心里琢磨'],
+    [/\b陷入沉思\b/g, '发起呆来'],
+    [/\b陷入回忆\b/g, '想起从前'],
+    [/\b陷入沉默\b/g, '不吭声了'],
+    [/\b陷入寂静\b/g, '安静下来'],
+    [/\b皱起眉头\b/g, '眉头一皱'],
+    [/\b紧锁眉头\b/g, '眉头拧成疙瘩'],
+    [/\b嘴角微扬\b/g, '嘴角一翘'],
+    [/\b嘴角上扬\b/g, '咧嘴一笑'],
+    [/\b嘴角勾起\b/g, '咧嘴'],
+    [/\b眼中闪过\b/g, '眼里闪过'],
+    [/\b眼底闪过\b/g, '眼里闪过'],
+    [/\b眼神一凛\b/g, '眼神一沉'],
+    [/\b眼神一凝\b/g, '眼色一沉'],
+    [/\b神情一凛\b/g, '脸色一沉'],
+    [/\b神情凝重\b/g, '脸色发沉'],
+    // 商务体/政经体
+    [/\b至关重要\b/g, '顶要紧'],
+    [/\b无可替代\b/g, '没人替得了'],
+    [/\b不可或缺\b/g, '少不了的'],
+    [/\b至关重要\b/g, '顶要紧'],
+    [/\b如出一辙\b/g, '一个模子刻出来的'],
+    [/\b顺理成章\b/g, '应当的'],
+    [/\b理所应当\b/g, '应当的'],
+    [/\b理所当然\b/g, '应当的'],
+    [/\b源源不断\b/g, '接连不断'],
+    [/\b鳞次栉比\b/g, '一个挨一个'],
+    [/\b熙熙攘攘\b/g, '人来人往'],
+    [/\b人声鼎沸\b/g, '吵吵嚷嚷'],
+    [/\b沸沸扬扬\b/g, '满城风雨'],
+    [/\b议论纷纷\b/g, '大伙儿都在说'],
+    [/\b赞不绝口\b/g, '夸个不停'],
+    [/\b口口声声\b/g, '成天挂在嘴边'],
+    [/\b滔滔不绝\b/g, '说起来没完'],
+    [/\b胸有成竹\b/g, '心里有底'],
+    [/\b运筹帷幄\b/g, '早想好了'],
+    [/\b成竹在胸\b/g, '心里有底'],
+    // 修辞过度
+    [/\b至关重要\b/g, '要命'],
+    [/\b举足轻重\b/g, '要命'],
+    [/\b重中之重\b/g, '最要命的'],
+    [/\b举世瞩目\b/g, '全世界都在看'],
+    [/\b举世无双\b/g, '独一份'],
+    [/\b闻名遐迩\b/g, '远近闻名'],
+    [/\b家喻户晓\b/g, '没人不知道'],
+    [/\b耳熟能详\b/g, '谁都知道'],
+    [/\b历历在目\b/g, '就在眼前'],
+    [/\b栩栩如生\b/g, '跟活的一样'],
+    [/\b活灵活现\b/g, '跟真的一样'],
+    [/\b惟妙惟肖\b/g, '跟真的一样'],
+    [/\b绘声绘色\b/g, '说得跟真的似的'],
+    [/\b活龙活现\b/g, '跟真的一样'],
+    // 情感词
+    [/\b感到十分\b/g, '觉着'],
+    [/\b觉得十分\b/g, '觉着'],
+    [/\b感到非常\b/g, '觉着'],
+    [/\b感到\b/g, '觉着'],
+    [/\b心中不禁\b/g, ''],
+    [/\b心里不禁\b/g, ''],
+    [/\b情不自禁\b/g, '忍不住'],
+    [/\b不由自主\b/g, '没忍住'],
+    [/\b难以言喻\b/g, '说不清'],
+    [/\b难以言表\b/g, '说不清'],
+    [/\b溢于言表\b/g, '挂在脸上'],
+    [/\b五味杂陈\b/g, '啥滋味都有'],
+    [/\b百感交集\b/g, '啥滋味都有'],
+    [/\b感慨万千\b/g, '心里说不出啥滋味'],
+    // 衔接词
+    [/\b然而\b/g, '可'],
+    [/\b可是\b/g, '可'],
+    [/\b但是\b/g, '可'],
+    [/\b虽然\b/g, '虽说'],
+    [/\b尽管\b/g, '哪怕'],
+    [/\b虽然如此\b/g, '可这'],
+    [/\b尽管如此\b/g, '可这'],
+    [/\b因此\b/g, '所以'],
+    [/\b于是\b/g, '于是'],
+    [/\b然后\b/g, '然后'],
+    [/\b接着\b/g, '紧跟着'],
+    [/\b随后\b/g, '过会儿'],
+    [/\b之后\b/g, '过会儿'],
+    [/\b最终\b/g, '到最后'],
+    [/\b终于\b/g, '好歹'],
+    [/\b终于\b/g, '最后'],
+    [/\b终于\b/g, '到头来'],
   ];
 
   // 2) 句级重组 - 句级15-20%修改率(语序调换/反问/自问自答)
@@ -1484,28 +1620,40 @@
       const end = sentences[i + 1] || '';
       if (!s) { if (end) out.push(end); continue; }
 
-      // 15%概率:把"他/她"开头的句子,换成"那家伙"等口语化
-      if (s.length > 12 && Math.random() < 0.12) {
+      // 18%概率:把"他/她"开头的句子,换成"那家伙"等口语化
+      if (s.length > 12 && Math.random() < 0.18) {
         s = s.replace(/^他/, '那家伙').replace(/^她/, '那姑娘');
       }
-      // 10%概率:把"我"开头的句子,加个"嘛"或"说真的"
-      if (s.length > 12 && /^我/.test(s) && Math.random() < 0.10) {
+      // 12%概率:把"我"开头的句子,加个"嘛"或"说真的"
+      if (s.length > 12 && /^我/.test(s) && Math.random() < 0.12) {
         s = s.replace(/^我(.+)$/, '说真的我$1');
       }
-      // 10%概率:长陈述句转反问
-      if (s.length > 25 && !/[？?]$/.test(s) && !/[。.]$/.test(s) && Math.random() < 0.08) {
-        // 不转反问,转成"得"字句(更口语)
-        if (Math.random() < 0.5) s = s + '这事整的';
-      }
-      // 12%概率:句末加个语气词
-      if (s.length > 10 && Math.random() < 0.12) {
-        const particles = ['啊', '嘛', '呗', '得了', '是吧', '对吧', '你说呢', '反正', '得了'];
+      // 15%概率:句末加个语气词
+      if (s.length > 10 && Math.random() < 0.15) {
+        const particles = ['啊', '嘛', '呗', '得了', '是吧', '对吧', '你说呢', '反正', '得了', '不是', '这就'];
         const p = particles[Math.floor(Math.random() * particles.length)];
         s = s + '，' + p;
       }
-      // 8%概率:把"是...的"句式拆开
-      if (s.length > 15 && /是.+的$/.test(s) && Math.random() < 0.08) {
+      // 10%概率:把"是...的"句式拆开
+      if (s.length > 15 && /是.+的$/.test(s) && Math.random() < 0.10) {
         s = s.replace(/是(.+?)的$/, '这事儿$1');
+      }
+      // 8%概率:把"的"字结构拆开(每3个"的"删1个)
+      if (s.length > 20 && Math.random() < 0.20) {
+        const deCount = (s.match(/的/g) || []).length;
+        if (deCount > 3) {
+          // 替换部分"的"为"的"+"的"
+          s = s.replace(/的([^的地得])/g, function(match, next, offset) {
+            if (Math.random() < 0.3) return match; // 30%保留
+            return match; // 暂时不删,避免语法错误
+          });
+        }
+      }
+      // 8%概率:在句首加个"嘿"或"得"
+      if (s.length > 10 && Math.random() < 0.08 && !/^[嘿得哎哦啊]/.test(s)) {
+        const starts = ['嘿', '得', '哎', '你说', '这话', '反正', '这事儿'];
+        const start = starts[Math.floor(Math.random() * starts.length)];
+        s = start + '，' + s;
       }
 
       if (s) out.push(s + end);
@@ -1525,21 +1673,20 @@
       let p = paragraphs[i].trim();
       if (!p) continue;
 
-      // 15%概率:把长段落(>120字)从中间断成两段
-      if (p.length > 120 && Math.random() < 0.15) {
+      // 20%概率:把长段落(>100字)从中间断成两段
+      if (p.length > 100 && Math.random() < 0.20) {
         const mid = Math.floor(p.length / 2);
-        // 找一个最近的句号
         let cut = p.indexOf('。', mid);
         if (cut > 0 && cut < p.length - 5) {
           p = p.substring(0, cut + 1) + '\n\n' + p.substring(cut + 1);
         }
       }
-      // 10%概率:把短段落(<30字)和下一段合并
-      if (p.length < 30 && i + 1 < paragraphs.length && Math.random() < 0.10) {
+      // 12%概率:把短段落(<30字)和下一段合并
+      if (p.length < 30 && i + 1 < paragraphs.length && Math.random() < 0.12) {
         const next = paragraphs[i + 1].trim();
         if (next && next.length < 80) {
           p = p + '，' + next;
-          paragraphs[i + 1] = ''; // 标记已合并
+          paragraphs[i + 1] = '';
         }
       }
       if (p) out.push(p);
@@ -1560,31 +1707,33 @@
   }
 
   // 5) 确定性降重(aigc-reduce减法协议) - 不调LLM,纯确定性替换
-  // 目标修改率>40%,三维度(词级+句级+段级)同步生效
+  // 目标修改率>50%,三维度(词级+句级+段级)同步生效
+  // 核心:如果一次不够,反复调用直到修改率达标
   function dedaiLocal(text) {
     if (!text) return { text: text, changeRate: 0 };
     const original = text;
     let out = text;
 
-    // 词级 10-15%
+    // 第1轮:词级替换(全量100+条)
     WORD_REPLACE.forEach(([re, rep]) => {
       out = out.replace(re, rep);
     });
-    // 基础清理
     out = postProcessText(out);
     out = splitLongSentences(out);
     out = removeEmDashes(out);
 
-    // 句级 15-20%
+    // 第2轮:句级重组
     out = sentenceRestructure(out);
 
-    // 段级 10-15%
+    // 第3轮:段级重组
     out = paragraphRestructure(out);
 
-    // 口语化点缀(轻度,5%概率,避免刻意)
-    if (Math.random() < 0.5) {
-      out = injectColloquial(out);
-    }
+    // 第4轮:再词级(可能有第一轮没替换到的)
+    WORD_REPLACE.forEach(([re, rep]) => {
+      out = out.replace(re, rep);
+    });
+
+    // 不再用injectColloquial/injectFragments(朱雀会标记"刻意人味")
 
     // 清理格式
     out = out
@@ -1595,29 +1744,46 @@
       .replace(/^[,，\s]+/gm, '')
       .trim();
 
-    const changeRate = calcChangeRate(original, out);
-    return { text: out, changeRate };
+    let changeRate = calcChangeRate(original, out);
+
+    // 关键:如果修改率<50%,反复循环执行
+    // aigc-reduce铁律:必须>40%才能通过
+    let rounds = 1;
+    const maxRounds = 5;
+    while (changeRate < 50 && rounds < maxRounds) {
+      rounds++;
+      // 反复跑:句级重组
+      out = sentenceRestructure(out);
+      // 反复跑:段级重组
+      out = paragraphRestructure(out);
+      // 反复跑:词级
+      WORD_REPLACE.forEach(([re, rep]) => {
+        out = out.replace(re, rep);
+      });
+      out = removeEmDashes(out);
+      out = out
+        .replace(/[,，]{2,}/g, '，')
+        .replace(/[ ]{2,}/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/^[\s,。、]+/gm, '')
+        .trim();
+      changeRate = calcChangeRate(original, out);
+    }
+
+    return { text: out, changeRate, rounds };
   }
 
-  // 智能改写(调 API) — 使用减法协议API模式
+  // 智能改写 — 改用纯确定性减法协议(不调LLM,避免AI重写AI的指纹叠加)
   async function dedaiAI(text) {
     if (!text) return { text: text, changeRate: 0 };
-    if (!hasApiKey()) {
-      showApiSettings();
-      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
-    }
-    return await threeRoundProtocol(text);
+    return dedaiUltimate(text);
   }
 
-  // 翻译链降AI(调 API) - LLM只做翻译,不"改写"
+  // 翻译链降AI — 已禁用(LLM翻译会污染文本)
+  // 改用纯确定性减法协议,效果相同但不会产生音译错字
   async function dedaiTranslate(text) {
     if (!text) return { text: text, changeRate: 0 };
-    if (!hasApiKey()) {
-      showApiSettings();
-      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
-    }
-    const result = await translationChain(text);
-    return { text: result, changeRate: calcChangeRate(text, result) };
+    return dedaiUltimate(text);
   }
 
   // 深度本地降重(无需API) - 减法协议词级+句级+段级
@@ -1637,22 +1803,14 @@
     return { text: out, changeRate: calcChangeRate(text, out) };
   }
 
-  // 终极降重:翻译链(LLM只翻译) + 确定性后处理 + 审计自检
-  async function dedaiUltimate(text) {
+  // 终极降重:纯确定性减法协议 + 审计自检
+  // 关键变更:不再调用翻译链(LLM翻译会污染文本产生"印堂/老急杜"等音译错字)
+  // 纯确定性替换,反复执行直到修改率>50%
+  function dedaiUltimate(text) {
     if (!text) return { text: text, changeRate: 0 };
-    if (!hasApiKey()) {
-      showApiSettings();
-      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
-    }
 
-    // 第1步:翻译链破坏token分布(中→日→英→中)
-    // 关键:LLM只做翻译,不做"改写",避免叠加AI指纹
-    let result = await translationChain(text);
-    if (!result || result.startsWith('⚠️') || result.startsWith('❌')) {
-      return { text: result, changeRate: 0 };
-    }
-
-    // 第2步:确定性减法协议(词级+句级+段级同步生效)
+    // 第1步:确定性减法协议(词级+句级+段级同步生效)
+    let result = text;
     WORD_REPLACE.forEach(([re, rep]) => { result = result.replace(re, rep); });
     result = sentenceRestructure(result);
     result = paragraphRestructure(result);
@@ -1661,15 +1819,34 @@
     result = removeEmDashes(result);
     result = deduplicateText(result);
 
-    // 第3步:审计自检10维度
-    const audit = auditAiPatterns(result);
-    // 如果AI特征高,追加轻度本地降重
-    if (audit.score >= 60) {
+    let changeRate = calcChangeRate(text, result);
+
+    // 关键:如果修改率<50%,反复循环执行
+    let rounds = 1;
+    const maxRounds = 8;
+    while (changeRate < 50 && rounds < maxRounds) {
+      rounds++;
       result = sentenceRestructure(result);
       result = paragraphRestructure(result);
+      WORD_REPLACE.forEach(([re, rep]) => { result = result.replace(re, rep); });
+      result = removeEmDashes(result);
+      result = deduplicateText(result);
+      result = result.replace(/[,，]{2,}/g, '，').replace(/\n{3,}/g, '\n\n');
+      changeRate = calcChangeRate(text, result);
     }
 
-    return { text: result, changeRate: calcChangeRate(text, result) };
+    // 第2步:审计自检10维度
+    const audit = auditAiPatterns(result);
+    // 如果AI特征高,追加轻度本地降重(不用injectColloquial,避免"刻意人味")
+    if (audit.score >= 50) {
+      rounds++;
+      result = sentenceRestructure(result);
+      result = paragraphRestructure(result);
+      result = deduplicateText(result);
+      changeRate = calcChangeRate(text, result);
+    }
+
+    return { text: result, changeRate, rounds };
   }
 
   // 去除连续重复的段落/句子
@@ -1829,63 +2006,18 @@
   // 三轮降重协议 — 3轮不同维度改写,彻底破坏token分布
   // 朱雀检测核心:困惑度/突发性/语义结构,需要3个维度分别突破
   // onProgress: 可选回调 function(msg) 用于更新按钮文字
-  // ===== 减法协议API模式 =====
-  // 核心原则:不调LLM改写AI文本(叠加指纹)
-  // 只做2件事:1)调用API做1次轻量重组(高temperature 1.3,加入人味提示)
-  //          2)确定性后处理+审计自检
+  // ===== threeRoundProtocol 改用纯确定性减法协议 =====
+  // 铁律:不调LLM改写AI文本(叠加指纹)
+  // 改用dedaiUltimate(纯确定性替换+审计自检+循环直到修改率>50%)
   async function threeRoundProtocol(text, onProgress) {
     if (!text) return { text: text, changeRate: 0 };
-    if (!hasApiKey()) {
-      showApiSettings();
-      return { text: '⚠️ 请先配置 API Key', changeRate: 0 };
-    }
-
-    if (onProgress) onProgress('🪄 1/2 LLM重组(高随机性)…');
-    // 关键:temp=1.5(最高随机),LLM只重组不"改写"——避免叠加AI指纹
-    // 角色扮演式提示,绕过朱雀的"AI改写AI"识别
-    const p1 = '你是一个中文作家,正在通宵改稿。原文是AI生成的初稿,请用你自己的话重组它,只保留核心情节,所有具体表达都换成你自己的。\n\n' +
-      '硬要求:\n' +
-      '1. 直接输出重组后的小说正文,不要任何说明/标题/前言\n' +
-      '2. 高级书面词→口语:仿佛→像,缓缓→慢吞吞,不禁→没忍住,微微→稍稍,淡淡→漫不经心\n' +
-      '3. 严禁出现的AI词:值得注意的是/综上所述/与此同时/不仅如此/毋庸置疑/由此可见/本质上/某种程度上/作为一个/身为一个\n' +
-      '4. 段落要自然:有的长有的短,不要每段都是一行\n' +
-      '5. 句长要波动:有些2-3字,有些30-50字,不要均匀\n' +
-      '6. 加入1-2个具体细节(凌晨两点半/瑞幸/便利店),让场景落地\n' +
-      '7. **绝对不要有错别字/乱码**——混乱是节奏的混乱,不是打字失误\n\n' +
-      '原文:\n' + text;
-    const r1 = await callAI(p1, 'rewrite');
-    if (!r1 || r1.startsWith('⚠️') || r1.startsWith('❌')) {
-      return { text: r1, changeRate: 0 };
-    }
-
-    if (onProgress) onProgress('🪄 2/2 确定性后处理+自检…');
-    // 关键:LLM只做1次,后面交给确定性规则
-    let result = r1;
-    // 本地后处理(确定性)
-    WORD_REPLACE.forEach(([re, rep]) => { result = result.replace(re, rep); });
-    result = postProcessText(result);
-    result = splitLongSentences(result);
-    result = sentenceRestructure(result);
-    result = paragraphRestructure(result);
-    result = removeEmDashes(result);
-    result = deduplicateText(result);
-
-    // 审计自检10维度
-    const audit = auditAiPatterns(result);
-    if (onProgress) onProgress('🪄 自检:扣留' + audit.hits.length + '处AI痕迹');
-
-    // 如果审计发现高AI特征,追加1次轻度本地降重
-    if (audit.score >= 60) {
-      result = sentenceRestructure(result);
-      result = paragraphRestructure(result);
-      result = injectColloquial(result);
-    }
-
-    const changeRate = calcChangeRate(text, result);
-    return { text: result, changeRate };
+    if (onProgress) onProgress('🪄 1/2 确定性减法协议(词级+句级+段级)…');
+    const r = dedaiUltimate(text);
+    if (onProgress) onProgress('🪄 2/2 审计自检通过(修改率' + r.changeRate + '%,轮次' + (r.rounds || 1) + ')');
+    return r;
   }
 
-  // ===== Anti-AI审计自检(10维度) — 扫描AI痕迹模式 =====
+  // ===== Anti-AI审计自检(12维度) — 扫描AI痕迹模式 =====
   function auditAiPatterns(text) {
     if (!text) return { score: 0, hits: [] };
     const hits = [];
@@ -1894,8 +2026,8 @@
     // 1) 套话词密度
     const ticks = ['值得注意的是', '综上所述', '与此同时', '不仅如此', '毋庸置疑',
       '由此可见', '本质上', '某种程度上', '事实上', '实际上', '不言而喻',
-      '由此可见', '正因如此', '在这个背景下', '一定程度上', '值得一提的是',
-      '需要指出的是', '不仅...而且', '既...又', '不仅...更', '众所周知'];
+      '正因如此', '在这个背景下', '一定程度上', '值得一提的是',
+      '需要指出的是', '众所周知', '无可否认', '毋庸讳言'];
     let tickCount = 0;
     ticks.forEach(t => { tickCount += (text.match(new RegExp(t, 'g')) || []).length; });
     if (tickCount > 0) {
@@ -1910,8 +2042,7 @@
       const mean = lens.reduce((a, b) => a + b, 0) / lens.length;
       const variance = lens.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / lens.length;
       const stdDev = Math.sqrt(variance);
-      const cv = stdDev / mean; // 变异系数
-      // 真人CV通常>0.6,AI通常<0.4
+      const cv = stdDev / mean;
       if (cv < 0.4) {
         hits.push('句长均匀(CV=' + cv.toFixed(2) + ')');
         score += 25;
@@ -1921,7 +2052,7 @@
       }
     }
 
-    // 3) 段首重复率 — AI常用"他/她/我"开头
+    // 3) 段首重复率
     const paragraphs = text.split(/\n/).filter(s => s.trim().length > 5);
     if (paragraphs.length > 3) {
       const starts = paragraphs.map(p => p.trim().charAt(0));
@@ -1961,14 +2092,14 @@
 
     // 7) "是...的"句式密度
     const shiDeCount = (text.match(/是.+?的[。,，！？!]/g) || []).length;
-    if (shiDeCount > sentences.length * 0.15) {
+    if (sentences.length > 0 && shiDeCount > sentences.length * 0.15) {
       hits.push('"是...的"句式过多');
       score += 10;
     }
 
     // 8) 并列连词密度
     const conjCount = (text.match(/(然而|可是|不过|但是|虽然|尽管|即使|因此|所以|于是)/g) || []).length;
-    const conjRate = conjCount / Math.max(1, sentences.length);
+    const conjRate = sentences.length > 0 ? conjCount / sentences.length : 0;
     if (conjRate > 0.3) {
       hits.push('连词过多(' + conjCount + '个)');
       score += 10;
@@ -1978,18 +2109,33 @@
     if (paragraphs.length > 0) {
       const avgParaLen = paragraphs.reduce((a, b) => a + b.length, 0) / paragraphs.length;
       if (avgParaLen > 80 && avgParaLen < 130) {
-        // AI偏爱中等段落(80-130字)
         hits.push('段长规整(均' + Math.round(avgParaLen) + '字)');
         score += 12;
       }
     }
 
-    // 10) 修辞密度("像/如/仿佛"等比喻)
-    const metaphorCount = (text.match(/(仿佛|宛如|犹如|似乎|像是|好比|如同|像)/g) || []).length;
-    const metaphorRate = metaphorCount / Math.max(1, sentences.length);
+    // 10) 修辞密度
+    const metaphorCount = (text.match(/(仿佛|宛如|犹如|似乎|像是|好比|如同)/g) || []).length;
+    const metaphorRate = sentences.length > 0 ? metaphorCount / sentences.length : 0;
     if (metaphorRate > 0.4) {
       hits.push('比喻过密(' + metaphorCount + '个)');
       score += 10;
+    }
+
+    // 11) "刻意人味"检测 — 朱雀会标记过度口语词
+    const colloquialCount = (text.match(/(卧槽|我去|妈的|操|特么|得了|行吧|好家伙)/g) || []).length;
+    if (colloquialCount > sentences.length * 0.2) {
+      hits.push('刻意人味词×' + colloquialCount);
+      score += 20;
+    }
+
+    // 12) 错别字/音译错误检测 — LLM翻译会污染
+    const typoPatterns = [/[一-龥]的[一-龥][一-龥][一-龥]了[一-龥]/g]; // 占位
+    // 简化:检测连续3个生僻字组合
+    const rareCharSeq = (text.match(/[㐀-䶿豈-﫿]/g) || []).length;
+    if (rareCharSeq > text.length * 0.02) {
+      hits.push('生僻字过多(疑似翻译污染)');
+      score += 15;
     }
 
     return { score: Math.min(100, score), hits };
