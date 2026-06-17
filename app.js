@@ -1803,6 +1803,149 @@
     return { text: out, changeRate: calcChangeRate(text, out) };
   }
 
+  // ===== 结构化突发性：拆碎+合并+变异 (朱雀句长CV核心指标) =====
+  function structuralBurst(text) {
+    if (!text || text.length < 50) return text;
+    let out = text;
+
+    // 第1步:拆碎——插入碎片词,把长句从中间断开
+    const fragments = ['操。','行。','算了。','完了。','麻了。','吐了。','绝了。','离谱。','真的假的。','我靠。','不是。','等等。','啊这。','草。','嗯。','好吧。','服了。','无语。','逆天。','裂开。'];
+    const sentences = out.split(/([。！？])/);
+    const result = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      if (!s || /^[。！？]$/.test(s)) { result.push(s); continue; }
+      if (s.length > 20 && Math.random() < 0.15) {
+        const frag = fragments[Math.floor(Math.random() * fragments.length)];
+        result.push(frag);
+        const breakPos = Math.floor(s.length * (0.3 + Math.random() * 0.3));
+        const commaPos = s.indexOf('，', breakPos);
+        if (commaPos > 0 && commaPos < s.length - 5) {
+          result.push(s.slice(0, commaPos + 1));
+          result.push(s.slice(commaPos + 1));
+        } else {
+          result.push(s);
+        }
+      } else {
+        result.push(s);
+      }
+    }
+    out = result.join('');
+
+    // 第2步:合并——3个短行焊成1个长流水句
+    const lines = out.split('\n');
+    const merged = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) { merged.push(lines[i]); i++; continue; }
+      if (i + 2 < lines.length) {
+        const l1 = lines[i].trim(), l2 = lines[i+1].trim(), l3 = lines[i+2].trim();
+        if (l1.length < 15 && l2.length < 15 && l3.length < 15 &&
+            l1.length > 2 && l2.length > 2 && l3.length > 2) {
+          const combined = l1.replace(/[。！？]$/, '') + '，' +
+                          l2.replace(/[。！？]$/, '') + '，' +
+                          l3.replace(/[。！？]$/, '') + '。';
+          merged.push(combined);
+          i += 3;
+          continue;
+        }
+      }
+      merged.push(lines[i]);
+      i++;
+    }
+    out = merged.join('\n');
+
+    // 第3步:变异——20%概率截断长句
+    const sents2 = out.split(/([。！？])/);
+    const varResult = [];
+    for (let j = 0; j < sents2.length; j++) {
+      const s = sents2[j];
+      if (!s || /^[。！？]$/.test(s)) { varResult.push(s); continue; }
+      if (s.length > 30 && Math.random() < 0.2) {
+        const mid = Math.floor(s.length / 2);
+        const commaPos = s.lastIndexOf('，', mid + 10);
+        const commaPos2 = s.indexOf('，', mid - 10);
+        const bestPos = commaPos > 0 ? commaPos : commaPos2;
+        if (bestPos > 5 && bestPos < s.length - 5) {
+          varResult.push(s.slice(0, bestPos + 1));
+          varResult.push(s.slice(bestPos + 1));
+          continue;
+        }
+      }
+      varResult.push(s);
+    }
+    out = varResult.join('');
+    return out;
+  }
+
+  // ===== 低概率词替换：不是同义词，是"低频但自然"的表达 =====
+  function lowerProbability(text) {
+    if (!text) return text;
+    let out = text;
+    const LOW_PROB = [
+      [/(?:不由自主地)/g, '鬼使神差地'],
+      [/(?:缓缓地)/g, '慢吞吞地'],
+      [/(?:默默地)/g, '闷声'],
+      [/(?:静静地)/g, '一声不吭地'],
+      [/(?:淡淡地)/g, '漫不经心地'],
+      [/(?:微微)/g, '稍稍'],
+      [/(?:轻轻)/g, '随手'],
+      [/(?:紧紧)/g, '死死'],
+      [/(?:慢慢地)/g, '磨磨蹭蹭'],
+      [/(?:快步)/g, '三步并两步'],
+      [/(?:目光)/g, '眼珠子'],
+      [/(?:内心)/g, '心里头'],
+      [/(?:身体)/g, '身子骨'],
+      [/(?:声音)/g, '嗓子'],
+      [/(?:说道)/g, () => ['嘟囔','嘀咕','嚷','喊','吼'][Math.floor(Math.random()*5)]],
+      [/(?:看着)/g, () => ['瞅着','瞄着','瞥着','盯着眼'][Math.floor(Math.random()*4)]],
+      [/(?:走了)/g, () => ['溜了','蹿了','挪了','颠了'][Math.floor(Math.random()*4)]],
+      [/(?:笑了)/g, () => ['乐了','噗嗤一下','嘴角咧了咧','憋不住了'][Math.floor(Math.random()*4)]],
+      [/(?:点了点头)/g, () => ['嗯了一声','鼻子哼了下','下巴颏动了动'][Math.floor(Math.random()*3)]],
+      [/(?:想了想)/g, () => ['琢磨了一下','寻思半天','咂摸咂摸味儿'][Math.floor(Math.random()*3)]],
+      [/(?:突然)/g, () => Math.random() < 0.5 ? '猛地' : Math.random() < 0.5 ? '冷不丁' : '一下子'],
+      [/(?:非常)/g, () => ['贼','巨','特','老'][Math.floor(Math.random()*4)]],
+      [/(?:很快)/g, () => ['没一会儿','转眼间','一溜烟'][Math.floor(Math.random()*3)]],
+      [/(?:终于)/g, () => ['可算','好歹','总算'][Math.floor(Math.random()*3)]],
+      [/(?:但是)/g, () => ['可','不过','话说回来'][Math.floor(Math.random()*3)]],
+      [/(?:因为)/g, () => ['说白了','原因嘛','就因为'][Math.floor(Math.random()*3)]],
+      [/(?:所以)/g, () => ['这就导致','搞得','整得'][Math.floor(Math.random()*3)]],
+      [/(?:好像)/g, () => ['八成','估摸着','差不离'][Math.floor(Math.random()*3)]],
+    ];
+    LOW_PROB.forEach(([re, rep]) => { out = out.replace(re, rep); });
+    return out;
+  }
+
+  // ===== 真人瑕疵注入：省略主语/口语缩写/标点不规范 =====
+  function addHumanErrors(text) {
+    if (!text || text.length < 100) return text;
+    let out = text;
+    out = out.replace(/我([走看听说想])/g, (m, c) => Math.random() < 0.3 ? c : m);
+    out = out.replace(/他([走看听说想])/g, (m, c) => Math.random() < 0.3 ? c : m);
+    out = out.replace(/怎么了/g, () => Math.random() < 0.3 ? '咋了' : '怎么了');
+    out = out.replace(/什么/g, () => Math.random() < 0.3 ? '啥' : '什么');
+    out = out.replace(/没有/g, () => Math.random() < 0.3 ? '没' : '没有');
+    out = out.replace(/不可以/g, () => Math.random() < 0.3 ? '不行' : '不可以');
+    if (Math.random() < 0.2) {
+      const periodPos = out.indexOf('。');
+      if (periodPos > 0) {
+        out = out.slice(0, periodPos) + '...' + out.slice(periodPos + 1);
+      }
+    }
+    if (Math.random() < 0.15 && out.length > 200) {
+      const words = ['真的','不是','我跟你说','怎么说呢'];
+      const word = words[Math.floor(Math.random() * words.length)];
+      if (out.indexOf(word) >= 0) {
+        const lastPeriod = out.lastIndexOf('。');
+        if (lastPeriod > 0) {
+          out = out.slice(0, lastPeriod + 1) + word + '，' + out.slice(lastPeriod + 1);
+        }
+      }
+    }
+    return out;
+  }
+
   // 终极降重:纯确定性减法协议 + 审计自检
   // 关键变更:不再调用翻译链(LLM翻译会污染文本产生"印堂/老急杜"等音译错字)
   // 纯确定性替换,反复执行直到修改率>50%
@@ -1816,6 +1959,17 @@
     result = paragraphRestructure(result);
     result = postProcessText(result);
     result = splitLongSentences(result);
+
+    // 第2步:100% 版本核心 — 直接操控朱雀核心指标
+    result = structuralBurst(result);    // 句长突发性 (CV) - 拆碎+合并+变异
+    result = lowerProbability(result);    // 低概率词替换
+    result = addHumanErrors(result);     // 真人瑕疵注入
+
+    // 第3步:人味注入引擎 (思维跳跃+自相矛盾+具体细节)
+    result = humanChaos(result);
+    result = randomScramble(result);
+
+    // 第4步:清理
     result = removeEmDashes(result);
     result = deduplicateText(result);
 
@@ -1829,19 +1983,22 @@
       result = sentenceRestructure(result);
       result = paragraphRestructure(result);
       WORD_REPLACE.forEach(([re, rep]) => { result = result.replace(re, rep); });
+      result = structuralBurst(result);
+      result = lowerProbability(result);
       result = removeEmDashes(result);
       result = deduplicateText(result);
       result = result.replace(/[,，]{2,}/g, '，').replace(/\n{3,}/g, '\n\n');
       changeRate = calcChangeRate(text, result);
     }
 
-    // 第2步:审计自检10维度
+    // 第5步:审计自检
     const audit = auditAiPatterns(result);
     // 如果AI特征高,追加轻度本地降重(不用injectColloquial,避免"刻意人味")
     if (audit.score >= 50) {
       rounds++;
       result = sentenceRestructure(result);
       result = paragraphRestructure(result);
+      result = structuralBurst(result);
       result = deduplicateText(result);
       changeRate = calcChangeRate(text, result);
     }
