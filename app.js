@@ -1946,6 +1946,135 @@
     return out;
   }
 
+  // ===== 删除舞台指示 (AI 标志性写法) =====
+  function killStageDirection(text) {
+    if (!text) return text;
+    return text.replace(/[（(][^)）]{2,20}[)）]\s*/g, '');
+  }
+
+  // ===== 强制长流水句: 2-3 个短句焊成 1 个长句(提升CV) =====
+  function forceLongFlowSentence(text) {
+    if (!text) return text;
+    const lines = text.split('\n');
+    const out = [];
+    let i = 0;
+    while (i < lines.length) {
+      const l1 = lines[i].trim();
+      if (!l1) { out.push(lines[i]); i++; continue; }
+      // 尝试合并 2-3 个短句
+      let merged = l1;
+      let j = i + 1;
+      let count = 1;
+      while (j < lines.length && count < 3) {
+        const next = lines[j].trim();
+        if (!next) break;
+        if (next.length > 25) break;  // 太长不合并
+        if (next.length < 4) break;
+        // 已经有标点的不要合并
+        if (/[。！？]$/.test(next)) break;
+        merged = merged.replace(/[，,]$/, '') + '，' + next;
+        j++;
+        count++;
+      }
+      if (count > 1) {
+        out.push(merged);
+        i = j;
+      } else {
+        out.push(lines[i]);
+        i++;
+      }
+    }
+    return out.join('\n');
+  }
+
+  // ===== 注入语气词: 啧/嘶/嗐/呃/嘿 (真人特征) =====
+  function injectOnomatopoeia(text) {
+    if (!text) return text;
+    const interjections = ['啧', '嘶', '嗐', '呃', '嘿', '唉'];
+    // 句号后 12% 概率加语气词
+    let out = text.replace(/([。！？])([""「『]?)([一-龥])/g, (m, p1, p2, p3) => {
+      if (Math.random() < 0.12) {
+        const inter = interjections[Math.floor(Math.random() * interjections.length)];
+        return p1 + p2 + inter + p3;
+      }
+      return m;
+    });
+    // 句首 8% 概率加语气词(在主语后)
+    out = out.replace(/(我)([一-龥])/g, (m, p1, p2) => {
+      if (Math.random() < 0.08) {
+        const inter = interjections[Math.floor(Math.random() * interjections.length)];
+        return p1 + inter + p2;
+      }
+      return m;
+    });
+    return out;
+  }
+
+  // ===== 注入"真人错字": 的/地/得 混用(最常见真人笔误) =====
+  function injectTypos(text) {
+    if (!text || text.length < 100) return text;
+    let out = text;
+    // 限 1-2 处,避免影响阅读
+    if (Math.random() < 0.5) {
+      out = out.replace(/([一-龥])得([一-龥]{1,2}[一二三四五六七八九十])/g, (m, p1, p2) => {
+        return Math.random() < 0.4 ? p1 + '的' + p2 : m;
+      });
+    }
+    return out;
+  }
+
+  // ===== 注入自问自答对话 (真人网文特征) =====
+  function injectMoreDialogue(text) {
+    if (!text || text.length < 150) return text;
+    const qa = [
+      '"怎么办?" 我问自己。',
+      '"真的假的?" 脑子里突然冒出这么一句。',
+      '"这特么也行?" 忍不住嘀咕。',
+      '"不对,肯定哪里搞错了。" 我说。',
+      '"算了,先这么着吧。"',
+      '"我靠,这什么玩意儿?"',
+      '"等等,让我想想。"',
+    ];
+    const sentences = text.split(/([。！？])/);
+    const out = [];
+    let inserted = 0;
+    for (let i = 0; i < sentences.length; i++) {
+      out.push(sentences[i]);
+      if (sentences[i].match(/[。！？]/) && Math.random() < 0.10 && inserted < 2 && i > 6) {
+        const q = qa[Math.floor(Math.random() * qa.length)];
+        out.push(q);
+        inserted++;
+      }
+    }
+    return out.join('');
+  }
+
+  // ===== 清除 AI 高频意象/套句 =====
+  function fixAITells(text) {
+    if (!text) return text;
+    const swaps = [
+      [/翻江倒海/g, '翻来覆去'],
+      [/瞪大了眼睛/g, '眼睛瞪圆'],
+      [/嘴角勾起/g, '嘴角一翘'],
+      [/眼神一凛/g, '眼色一沉'],
+      [/空气中弥漫着/g, '空气里都是'],
+      [/心里咯噔一下/g, '心里咯噔一声'],
+      [/下意识地/g, '手一抬'],
+      [/鬼使神差地/g, '不知怎么就'],
+      [/时间仿佛静止/g, '时间好像停了'],
+      [/心跳漏了一拍/g, '心跳顿了一下'],
+      [/血液凝固/g, '血都凉了'],
+      [/瞳孔猛地一缩/g, '瞳孔一缩'],
+      [/冷汗直流/g, '一身冷汗'],
+      [/浑身一僵/g, '身子一僵'],
+      [/屏住呼吸/g, '气都不敢喘'],
+      [/倒吸一口凉气/g, '倒抽一口气'],
+    ];
+    let out = text;
+    swaps.forEach(([re, rep]) => { out = out.replace(re, rep); });
+    return out;
+  }
+
   // 终极降重:纯确定性减法协议 + 审计自检
   // 关键变更:不再调用翻译链(LLM翻译会污染文本产生"印堂/老急杜"等音译错字)
   // 纯确定性替换,反复执行直到修改率>50%
@@ -1960,16 +2089,24 @@
     result = postProcessText(result);
     result = splitLongSentences(result);
 
-    // 第2步:100% 版本核心 — 直接操控朱雀核心指标
+    // 第2步:清除 AI 高频意象/套句
+    result = fixAITells(result);
+    result = killStageDirection(result);
+
+    // 第3步:100% 版本核心 — 直接操控朱雀核心指标
     result = structuralBurst(result);    // 句长突发性 (CV) - 拆碎+合并+变异
     result = lowerProbability(result);    // 低概率词替换
     result = addHumanErrors(result);     // 真人瑕疵注入
+    result = forceLongFlowSentence(result);  // 强制长流水句(避免全碎片)
 
-    // 第3步:人味注入引擎 (思维跳跃+自相矛盾+具体细节)
+    // 第4步:人味注入引擎 (思维跳跃+自相矛盾+具体细节)
     result = humanChaos(result);
     result = randomScramble(result);
+    result = injectOnomatopoeia(result);  // 语气词
+    result = injectMoreDialogue(result);  // 自问自答
+    result = injectTypos(result);         // 真人错字
 
-    // 第4步:清理
+    // 第5步:清理
     result = removeEmDashes(result);
     result = deduplicateText(result);
 
@@ -1991,7 +2128,7 @@
       changeRate = calcChangeRate(text, result);
     }
 
-    // 第5步:审计自检
+    // 第6步:审计自检
     const audit = auditAiPatterns(result);
     // 如果AI特征高,追加轻度本地降重(不用injectColloquial,避免"刻意人味")
     if (audit.score >= 50) {
@@ -1999,6 +2136,7 @@
       result = sentenceRestructure(result);
       result = paragraphRestructure(result);
       result = structuralBurst(result);
+      result = forceLongFlowSentence(result);
       result = deduplicateText(result);
       changeRate = calcChangeRate(text, result);
     }
