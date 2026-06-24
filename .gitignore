@@ -1,0 +1,14 @@
+# 外部仓库
+synara-zh/
+
+# Claude Code 临时文件
+.claude/
+.omo/
+
+# 审计脚本(已迁 synara-zh 独立仓 audit/)
+scripts/audit/
+
+# 系统
+.DS_Store
+Thumbs.db
+*.log
