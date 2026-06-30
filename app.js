@@ -821,7 +821,7 @@
   function switchLevel(id) { work().currentLevel = id; scheduleSave(); render(); }
 
   function render() {
-    renderWorkSwitcher();
+    renderWorkCards();  // P0 fix: 之前调用 renderWorkSwitcher (未定义), 导致 render() 崩溃, 整个 app 失效
     renderSidebar();
     renderHeader();
     renderGoal();

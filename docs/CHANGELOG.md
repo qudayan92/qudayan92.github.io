@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-01 · 🐛 紧急修复: `renderWorkSwitcher()` 未定义导致整个 app 崩溃 (P0)
+
+**症状**: 用户报告"点击没反应" — 所有按钮无效. Playwright 自动化测试捕获 `ReferenceError: renderWorkSwitcher is not defined` 在每次 `render()` 时触发.
+
+**根因**: 提交 `6e959d8` 引入的 12.15 角色/设定系统代码把旧函数 `renderWorkSwitcher()` 重命名为 `renderWorkCards()`, **但 `render()` 函数 (line 823-833) 里第一行还在调用旧名字**. 每次页面渲染都抛 ReferenceError, JS 中断, 所有 `addEventListener` 全部失效.
+
+**修复**: app.js line 824 — `renderWorkSwitcher()` → `renderWorkCards()` (一行字面错误修复).
+
+**验证**: Playwright headless Chromium 跑 `test_a2.py`, 修复前 → 1 个 JS error; 修复后 → 0 个错误, 页面加载 + Ctrl+Shift+L 触发 + 36 个面板元素全部正常.
+
+**次要发现**: app.js line 294 和 line 474 有两个 `function renderWorkCards()` 声明. JS 函数声明 hoisting 规则下, 后定义 (line 474) 覆盖前定义 (line 294). 不是阻塞 bug (新版赢), 但代码冗余需要后续清理.
+
+---
+
 ## 2026-06-24 · 🐛 紧急修复: STRUCT_REPLACE 全部 224 条 `\b` 边界失效 (P0)
 
 **症状**: 提交 `6e959d8` 后, 朱雀降 AI 味在中文文本里几乎失效. 测试 4 个用例, 网文场景从 9 处替换降到 2 处.
