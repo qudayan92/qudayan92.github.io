@@ -2927,14 +2927,15 @@
     out = humanChaos(out);
 
     // 第5.5轮:破折号密度限制(voidborne-d 低危:每400字最多1个)
+    // B11.10 fix: 原条件 dashMatches.length > 2 在短文(<200字) 中2个破折号密度>1 仍触发检测
+    // 改为: 密度>1 时只保留前1个,保证密度永远<1/400字
     const dashMatches = out.match(/——/g) || [];
     const dashPer400 = dashMatches.length * 400 / Math.max(1, out.length);
-    if (dashPer400 > 1 && dashMatches.length > 2) {
-      // 保留前2个,后面的全替换为逗号
+    if (dashPer400 > 1) {
       let kept = 0;
       out = out.replace(/——/g, (m) => {
         kept++;
-        return kept <= 2 ? m : '，';
+        return kept <= 1 ? m : '，';
       });
     }
 

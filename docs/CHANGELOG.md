@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-01 · 🐛 破折号密度残留: 短文(2破折号)触发检测规则 (B11.10)
+
+**症状**: 短文(<200字) 改写后含 2 个破折号, 密度 = 2×400/字 > 1 仍触发 detectAiFlavor 规则12, 残留 AI 味 10 分.
+
+**根因**: app.js line 2934 原条件 `dashMatches.length > 2` 才处理. 2 个破折号永远不删.
+
+**修复**: 改为 `if (dashPer400 > 1)` — 密度 > 1 时只保留前 1 个, 保证永远 < 1/400字.
+
+**验证**: `scripts/audit/stress-test.py` 10 样本重跑:
+- 修复前: 8/10 完全消除 (样本 5/8 残留 10), 平均 ↓88%
+- **修复后: 10/10 完全消除 (100%), 平均 ↓100%**
+
+---
+
 ## 2026-07-01 · 🐛 紧急修复: app.js IIFE 闭包, 函数全部不可访问 (P1)
 
 **症状**: 浏览器控制台调用 `detectAiFlavor()` / `deepLocalDedai()` 等全部 `ReferenceError: X is not defined`. Playwright `page.evaluate('render()')` 同样失败. 测试覆盖不可信, 用户无法手动验证降 AI 味.
