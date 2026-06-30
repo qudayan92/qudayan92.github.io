@@ -19,6 +19,10 @@
       --warn: #f59e0b;
       --bad: #ef4444;
       --locked: #3a4150;
+      --card-bg: #182035;
+      --card-hover: #1e2847;
+      --card-border: #2a3142;
+      --card-selected: rgba(110, 168, 255, 0.15);
     }
     * { box-sizing: border-box; }
 
@@ -1240,8 +1244,15 @@
   <div class="work-switcher" id="work-switcher" title="切换作品">
     <span class="work-name">—</span>
     <span class="caret">▾</span>
+    <div class="work-switcher-toggle" onclick="toggleWorkMenu()">切换作品</div>
   </div>
   <div class="work-menu" id="work-menu">
+    <div class="work-menu-header">
+      <div class="work-menu-title">选择作品</div>
+      <div class="work-menu-actions">
+        <button class="btn" id="btn-new-work">＋ 新建作品</button>
+      </div>
+    </div>
     <div id="work-list"></div>
     <div class="divider"></div>
     <div class="menu-action" id="btn-new-work"><span class="ico">＋</span> 新建作品</div>
@@ -1250,6 +1261,7 @@
   <div class="progress" title="整体进度"><i id="progress-bar"></i></div>
   <div class="progress-label" id="progress-label">0%</div>
   <button class="btn ghost settings-btn" id="btn-search" title="全文搜索 (Ctrl+Shift+F)">🔍</button>
+  <button class="btn ghost settings-btn" id="btn-lore" title="角色/设定管理 (Ctrl+Shift+L)">🗂️ 设定</button>
   <button class="btn ghost settings-btn" id="btn-showcase" title="作品集 / 成品展示">📚</button>
   <button class="btn ghost settings-btn" id="btn-api-settings" title="设置 DeepSeek API Key">⚙️</button>
 </header>
@@ -1639,6 +1651,213 @@
     </div>
   </div>
 </div>
+
+<!-- 角色/设定管理 弹窗 -->
+<div class="modal-bg" id="lore-modal-bg">
+  <div class="modal" style="max-width:920px;max-height:88vh;">
+    <div class="modal-head">
+      <h3>🗂️ 角色/设定管理</h3>
+      <div class="tabs">
+        <div class="tab active" data-lore-tab="characters">👤 人物 <span class="lore-count" id="lore-count-characters">0</span></div>
+        <div class="tab" data-lore-tab="factions">🏛️ 势力 <span class="lore-count" id="lore-count-factions">0</span></div>
+        <div class="tab" data-lore-tab="locations">📍 地点 <span class="lore-count" id="lore-count-locations">0</span></div>
+      </div>
+      <span class="x" id="lore-modal-close">✕</span>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding:16px;">
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:13px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="lore-ai-toggle" style="width:16px;height:16px;accent-color:var(--accent);" />
+          <span><b>📌 附加到 AI 提示词</b> <span style="color:var(--muted);font-size:12px;">— 开启后,AI 续写/改写时自动带上设定上下文</span></span>
+        </label>
+        <span style="flex:1;"></span>
+        <span style="color:var(--muted);font-size:12px;">共 <b id="lore-total">0</b> 条</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="lore-search" placeholder="🔍 搜索名称/标签/描述..." style="flex:1;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;outline:none;" />
+        <button class="btn primary" id="lore-add-btn">＋ 新增</button>
+      </div>
+      <div id="lore-list" style="flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:4px;min-height:200px;max-height:60vh;align-content:start;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="lore-export">📤 导出 JSON</button>
+      <button class="btn" id="lore-import">📥 导入</button>
+      <input type="file" id="lore-import-file" accept=".json" style="display:none;" />
+      <span style="flex:1;"></span>
+      <button class="btn ghost" id="lore-modal-ok">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 角色/设定 编辑弹窗 -->
+<div class="modal-bg" id="lore-edit-modal-bg">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-head">
+      <h3 id="lore-edit-title">新增人物</h3>
+      <span class="x" id="lore-edit-close">✕</span>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding:16px;">
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">名称 *</label>
+          <input type="text" id="lore-edit-name" placeholder="如:李明" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:14px;outline:none;" />
+        </div>
+        <div style="width:90px;">
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">配色</label>
+          <input type="color" id="lore-edit-color" value="#6ea8ff" style="width:100%;height:36px;padding:2px;background:var(--bg);border:1px solid var(--line);border-radius:6px;cursor:pointer;" />
+        </div>
+      </div>
+      <div id="lore-edit-role-row">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">角色定位 (人物) / 类型 (势力/地点)</label>
+        <input type="text" id="lore-edit-role" placeholder="如:主角/反派/剑派/都城" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">标签 (逗号分隔)</label>
+        <input type="text" id="lore-edit-tags" placeholder="如:人类,青年,剑客,傲娇" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">描述 *</label>
+        <textarea id="lore-edit-desc" rows="5" placeholder="外貌/性格/能力/背景/与其他人物关系..." style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;outline:none;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+      <div id="lore-edit-faction-row" style="display:none;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">所属势力</label>
+        <select id="lore-edit-faction" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;outline:none;">
+          <option value="">— 无 —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="lore-edit-delete" style="color:var(--bad);display:none;">🗑️ 删除</button>
+      <span style="flex:1;"></span>
+      <button class="btn ghost" id="lore-edit-cancel">取消</button>
+      <button class="btn primary" id="lore-edit-save">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ===== 角色/设定 弹窗样式 ===== */
+.lore-count {
+  display:inline-block;
+  min-width:18px;
+  padding:0 5px;
+  margin-left:4px;
+  background:var(--panel-2);
+  color:var(--muted);
+  font-size:11px;
+  border-radius:9px;
+  text-align:center;
+  line-height:16px;
+  vertical-align:middle;
+}
+.lore-count.active { background:var(--accent); color:#0b1424; font-weight:600; }
+
+.lore-card {
+  position:relative;
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:12px;
+  cursor:pointer;
+  transition:all 0.15s;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:140px;
+}
+.lore-card:hover {
+  border-color:var(--accent);
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(110,168,255,0.15);
+}
+.lore-card-head {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.lore-avatar {
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:16px;
+  color:#fff;
+  font-weight:600;
+  flex-shrink:0;
+}
+.lore-name {
+  font-size:15px;
+  font-weight:600;
+  color:var(--text);
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.lore-role {
+  font-size:11px;
+  padding:2px 6px;
+  background:var(--panel-2);
+  color:var(--muted);
+  border-radius:3px;
+  border:1px solid var(--line);
+}
+.lore-tags {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  min-height:0;
+}
+.lore-tag {
+  font-size:10px;
+  padding:1px 6px;
+  background:var(--panel-2);
+  color:var(--muted);
+  border-radius:3px;
+  border:1px solid var(--line);
+}
+.lore-desc {
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.5;
+  display:-webkit-box;
+  -webkit-line-clamp:4;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  flex:1;
+}
+.lore-empty {
+  grid-column:1/-1;
+  text-align:center;
+  padding:40px 20px;
+  color:var(--muted);
+  font-size:13px;
+}
+.lore-card-actions {
+  position:absolute;
+  top:6px;
+  right:6px;
+  display:none;
+  gap:4px;
+}
+.lore-card:hover .lore-card-actions { display:flex; }
+.lore-card-actions button {
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  color:var(--muted);
+  border-radius:4px;
+  width:24px;
+  height:24px;
+  padding:0;
+  font-size:11px;
+  cursor:pointer;
+}
+.lore-card-actions button:hover { background:var(--accent); color:#0b1424; }
+.lore-card-actions .danger:hover { background:var(--bad); }
+</style>
+
 </body>
 </html>
 

@@ -290,26 +290,91 @@
   }
 
   // ===== 渲染 =====
-  function renderWorkSwitcher() {
-    const btn = document.getElementById('work-switcher');
-    btn.querySelector('.work-name').textContent = work().name;
+  // New work cards renderer
+  function renderWorkCards() {
     const menu = document.getElementById('work-menu');
-    menu.innerHTML = '';
+    
+    // Remove existing work switcher content
+    const existingContent = menu.querySelector('.work-card-grid');
+    if (existingContent) {
+      existingContent.remove();
+    }
+    
+    // Create card container
+    const cardContainer = document.createElement('div');
+    cardContainer.className = 'work-card-grid';
+    cardContainer.id = 'work-card-grid';
+    
+    // Create header for the cards
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'work-card-header';
+    cardHeader.innerHTML = '<h3>作品库</h3><div class="work-card-actions"><button class="btn" id="btn-new-work-card">＋ 新建作品</button></div>';
+    cardContainer.appendChild(cardHeader);
+    
+    // Create cards for each work
     Object.values(state.works)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .forEach(w => {
-        const item = document.createElement('div');
-        item.className = 'work-item' + (w.id === state.activeWorkId ? ' active' : '');
+        const card = document.createElement('div');
+        card.className = 'work-card' + (w.id === state.activeWorkId ? ' active' : '');
         const words = totalWordsOf(w);
-        item.innerHTML =
-          '<div class="work-item-main">' +
-            '<div class="work-item-name">' + escapeHtml(w.name) + '</div>' +
-            '<div class="work-item-sub">' + words.toLocaleString() + ' 字 · ' + doneCountOf(w) + '/' + LEVELS.length + ' 关</div>' +
+        const done = doneCountOf(w);
+        const levelLen = LEVELS.length;
+        
+        // Generate gradient based on work ID for unique colors
+        const hue = (w.id.charCodeAt(0) % 360);
+        const bgGradient = `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${(hue + 30) % 360}, 70%, 60%))`;
+        
+        card.innerHTML =
+          '<div class="work-card-content">' +
+            '<div class="work-card-header-row">' +
+              '<div class="work-card-title">' + escapeHtml(w.name) + '</div>' +
+              (w.id === state.activeWorkId ? '<div class="work-card-selected-badge">✓</div>' : '') +
+            '</div>' +
+            '<div class="work-card-meta">' +
+              '<div class="work-card-stat">' +
+                '<span class="work-card-label">字数:</span> ' + words.toLocaleString() +
+              '</div>' +
+              '<div class="work-card-stat">' +
+                '<span class="work-card-label">进度:</span> ' + done + '/' + levelLen +
+              '</div>' +
+              '<div class="work-card-stat">' +
+                '<span class="work-card-label">最后更新:</span> ' + new Date(w.updatedAt || w.createdAt).toLocaleDateString() +
+              '</div>' +
+            '</div>' +
+            '<div class="work-card-progress">' +
+              '<div class="work-card-progress-bar" style="width: ' + Math.round((done / levelLen) * 100) + '%; background: hsl(' + hue + ', 70%, 50%);"></div>' +
+            '</div>' +
           '</div>' +
-          '<div class="work-item-check">' + (w.id === state.activeWorkId ? '✓' : '') + '</div>';
-        item.addEventListener('click', () => { switchWork(w.id); closeWorkMenu(); });
-        menu.appendChild(item);
+          '<div class="work-card-actions">' +
+            '<button class="work-card-action-btn" data-action="rename" title="重命名">✎</button>' +
+            '<button class="work-card-action-btn" data-action="delete" title="删除">🗑</button>' +
+          '</div>';
+        
+        card.addEventListener('click', (e) => {
+          if (!e.target.classList.contains('work-card-action-btn')) {
+            switchWork(w.id);
+            closeWorkMenu();
+          }
+        });
+        
+        // Add action button event listeners
+        card.querySelectorAll('.work-card-action-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            if (action === 'rename') {
+              renameWork(w.id);
+            } else if (action === 'delete') {
+              deleteWork(w.id);
+            }
+          });
+        });
+        
+        cardContainer.appendChild(card);
       });
+    
+    menu.appendChild(cardContainer);
   }
 
   function openWorkMenu() { document.getElementById('work-menu').classList.add('open'); }
@@ -404,6 +469,90 @@
     const st = w.levels[lvl.id];
     if (!st) return false;
     return st.status === 'done';
+  }
+
+  function renderWorkCards() {
+    const btn = document.getElementById('work-switcher');
+    const menu = document.getElementById('work-menu');
+    
+    // Create card container
+    const cardContainer = document.createElement('div');
+    cardContainer.className = 'work-card-grid';
+    cardContainer.id = 'work-card-grid';
+    
+    // Create header for the cards
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'work-card-header';
+    cardHeader.innerHTML = '<h3>作品库</h3><div class="work-card-actions"><button class="btn" id="btn-new-work-card">＋ 新建作品</button></div>';
+    cardContainer.appendChild(cardHeader);
+    
+    // Create cards for each work
+    Object.values(state.works)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .forEach(w => {
+        const card = document.createElement('div');
+        card.className = 'work-card' + (w.id === state.activeWorkId ? ' active' : '');
+        const words = totalWordsOf(w);
+        const done = doneCountOf(w);
+        const levelLen = LEVELS.length;
+        
+        // Generate gradient based on work ID for unique colors
+        const hue = (w.id.charCodeAt(0) % 360);
+        const bgGradient = `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${(hue + 30) % 360}, 70%, 60%))`;
+        
+        card.innerHTML =
+          '<div class="work-card-content">' +
+            '<div class="work-card-header-row">' +
+              '<div class="work-card-title">' + escapeHtml(w.name) + '</div>' +
+              (w.id === state.activeWorkId ? '<div class="work-card-selected-badge">✓</div>' : '') +
+            '</div>' +
+            '<div class="work-card-meta">' +
+              '<div class="work-card-stat">' +
+                '<span class="work-card-label">字数:</span> ' + words.toLocaleString() +
+              '</div>' +
+              '<div class="work-card-stat">' +
+                '<span class="work-card-label">进度:</span> ' + done + '/' + levelLen +
+              '</div>' +
+              '<div class="work-card-stat">' +
+                '<span class="work-card-label">最后更新:</span> ' + new Date(w.updatedAt || w.createdAt).toLocaleDateString() +
+              '</div>' +
+            '</div>' +
+            '<div class="work-card-progress">' +
+              '<div class="work-card-progress-bar" style="width: ' + Math.round((done / levelLen) * 100) + '%; background: hsl(' + hue + ', 70%, 50%);"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="work-card-actions">' +
+            '<button class="work-card-action-btn" data-action="rename" title="重命名">✎</button>' +
+            '<button class="work-card-action-btn" data-action="delete" title="删除">🗑</button>' +
+          '</div>';
+        
+        card.addEventListener('click', (e) => {
+          if (!e.target.classList.contains('work-card-action-btn')) {
+            switchWork(w.id);
+          }
+        });
+        
+        // Add action button event listeners
+        card.querySelectorAll('.work-card-action-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            if (action === 'rename') {
+              renameWork(w.id);
+            } else if (action === 'delete') {
+              deleteWork(w.id);
+            }
+          });
+        });
+        
+        cardContainer.appendChild(card);
+      });
+    
+    // Replace dropdown content with cards
+    menu.innerHTML = '';
+    menu.className = 'work-card-dropdown';
+    menu.appendChild(cardContainer);
+    menu.style.display = 'block'; // Show the card dropdown
   }
 
   function renderSidebar() {
@@ -783,8 +932,8 @@
         '- 加入内心OS:写到一半突然来一句"等等,这么说好像也不对"\n' +
         '- 加入对读者的喊话:"你猜怎么着""你别说""我说真的"\n' +
         '- 段落长度极度不均:有的段落就一个字"操",有的段落占半页\n' +
-        '- **绝对不要有错别字/乱码**!混乱是有节奏的混乱,不是打字失误的混乱\n' +
-        '- **绝对不要用省略号"……"**!改用句号或换行\n\n' +
+        '- **严格限制标点**——禁止省略号"……"(改用句号或逗号)、限制破折号"——"密度(每400字最多1个)、感叹号最多连续2个\n' +
+'- 真人很少用省略号,这是AI最明显的特征,绝对不要出现\n\n' +
         '禁止出现:值得注意的是/不得不说/令人惊讶的是/综上所述/在当今社会/众所周知/不仅如此/与此同时/毋庸置疑/仿佛/宛如/犹如/似乎/总的来说/归根结底/由此可见\n\n' +
         '保留原文情节,只改写法。直接输出,不加任何说明。';
     } else if (mode === 'polish') {
@@ -801,23 +950,34 @@
         '8. 直接输出,不加前缀说明';
     }
 
+    // 防止请求体超过 DeepSeek 32MB 限制:提前检测并截断
+    const MAX_BODY_CHARS = 12 * 1024 * 1024; // ~12MB (中文约3字节/字,留余量)
+    if (prompt.length > MAX_BODY_CHARS) {
+      return '❌ 文本过长(' + (prompt.length / 1024 / 1024).toFixed(1) + 'MB),已超出 API 限制。请缩短文本后重试。';
+    }
+
     try {
+      const body = JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        temperature: mode === 'rewrite' ? 1.5 : mode === 'polish' ? 0.3 : 1.2,
+        top_p: 0.95,
+        max_tokens: 2048,
+      });
+      // 二次检查:JSON 序列化后实际大小
+      if (body.length > 28 * 1024 * 1024) {
+        return '❌ 请求体过大(' + (body.length / 1024 / 1024).toFixed(1) + 'MB),请缩短文本后重试。';
+      }
       const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + apiKey,
         },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prompt },
-          ],
-          temperature: mode === 'rewrite' ? 1.5 : mode === 'polish' ? 0.3 : 1.2,
-          top_p: 0.95,
-          max_tokens: 2048,
-        }),
+        body: body,
       });
 
       if (!response.ok) {
@@ -1190,6 +1350,30 @@
       score += 3;
       signals.push('缺自我纠正');
     }
+
+    // 12. 破折号密度(voidborne-d 中危:AI 高频使用破折号表情绪)
+    const dashCount = (text.match(/——/g) || []).length;
+    const dashPer400 = dashCount * 400 / Math.max(1, text.length);
+    if (dashPer400 > 1) { score += 10; signals.push('破折号过密(' + dashPer400.toFixed(1) + '/400字)'); }
+    else if (dashPer400 > 0.5) { score += 5; signals.push('破折号偏密'); }
+
+    // 13. 段落长度一致性(voidborne-d 风格类:AI 段落长度一致)
+    if (paras.length >= 4) {
+      const paraLens = paras.map(p => p.length);
+      const paraAvg = paraLens.reduce((a, b) => a + b, 0) / paraLens.length;
+      const paraStddev = Math.sqrt(paraLens.reduce((s, l) => s + Math.pow(l - paraAvg, 2), 0) / paraLens.length);
+      const paraCv = paraStddev / Math.max(1, paraAvg);
+      if (paraCv < 0.25) { score += 10; signals.push('段落长度极一致(cv=' + paraCv.toFixed(2) + ')'); }
+      else if (paraCv < 0.4) { score += 5; signals.push('段落长度偏一致(cv=' + paraCv.toFixed(2) + ')'); }
+    }
+
+    // 14. 三段式/序数连接(voidborne-d 高危:AI 写作套路)
+    const ordinalPatterns = (text.match(/\b(首先|其次|再次|再次|最后|第一|第二|第三)\b/g) || []).length;
+    if (ordinalPatterns >= 2) { score += 12; signals.push('三段式连接 ×' + ordinalPatterns); }
+
+    // 15. 政经/企管话术(voidborne-d 高危:赋能/闭环等)
+    const bizWords = (text.match(/赋能|闭环|底层逻辑|抓手|触达|沉淀|复盘|迭代|破圈|颠覆|降本增效|深度融合|数字化转型|新质生产力/g) || []).length;
+    if (bizWords >= 2) { score += Math.min(15, bizWords * 4); signals.push('政经话术 ×' + bizWords); }
 
     return { score: Math.min(100, Math.max(0, score)), signals };
   }
@@ -2255,6 +2439,11 @@
       showApiSettings();
       return '⚠️ 请先配置 API Key';
     }
+    // polish 仅适合段落级润色:AI max_tokens=2048 限制了输出长度,超出无意义
+    const MAX_INPUT_CHARS = 5000;
+    if (text.length > MAX_INPUT_CHARS) {
+      return `⚠️ 原文过长(${text.length}字),polish 仅适合段落级润色(建议 ${MAX_INPUT_CHARS}字以内)。请选中要润色的段落重试。`;
+    }
     const prompt = '请对以下用户手写的文章做极小幅度的润色。要求:\n' +
       '1. 保留原文95%以上的用词和句式不变\n' +
       '2. 只修正明显的错别字和语病\n' +
@@ -2441,49 +2630,287 @@
     if (!text) return text;
     let out = text;
 
-    // 第1轮:AI高频词替换(扩充版)
+    // 第1轮:AI高频词替换(扩充版, 引用 qu-ai-wei 51条规则 + voidborne-d/humanize-chinese)
+    // bug修复: 字符类[]里的+是字面字符, 必须用(?:...)+或直接匹配整词
     const HEAVY_SWAPS = [
-      [/[深入]+/g, '扎进去'],
-      [/[领域]+/g, '地盘'],
-      [/[赋能]+/g, '帮忙'],
-      [/[聚焦]+/g, '盯住'],
-      [/[打造]+/g, '搞'],
-      [/[优化]+/g, '改好'],
-      [/[提升]+/g, '拉高'],
-      [/[增强]+/g, '加码'],
-      [/[完善]+/g, '补全'],
-      [/[推动]+/g, '推一把'],
-      [/[发展]+/g, '往前走'],
-      [/[创新]+/g, '玩新花样'],
-      [/[突破]+/g, '打破'],
-      [/[引领]+/g, '带路'],
-      [/[核心]+/g, '最关键的'],
-      [/[关键]+/g, '要命的'],
-      [/[重要]+/g, '顶要紧的'],
-      [/[基础]+/g, '底子'],
-      [/[框架]+/g, '架子'],
-      [/[模式]+/g, '套路'],
-      [/[体系]+/g, '一整套'],
-      [/[构建]+/g, '搭'],
-      [/[建立]+/g, '立起来'],
-      [/[实现]+/g, '搞成'],
-      [/[达到]+/g, '够着'],
-      [/[通过]+/g, '靠着'],
-      [/[利用]+/g, '用上'],
-      [/[依托]+/g, '靠着'],
-      [/[基于]+/g, '打底是'],
-      [/[有效]+/g, '管用'],
-      [/[显著]+/g, '明显'],
-      [/[持续]+/g, '一直'],
-      [/[进一步]+/g, '再'],
-      [/[不断]+/g, '不停地'],
-      [/[高度重视]+/g, '特别看重'],
-      [/[广泛关注]+/g, '大家都在看'],
-      [/[具有重要意义]+/g, '挺重要的'],
-      [/[发挥重要作用]+/g, '帮了大忙'],
-      [/[产生深远影响]+/g, '影响挺大'],
+      [/深入/g, '扎进去'],
+      [/领域/g, '地盘'],
+      [/赋能/g, '帮忙'],
+      [/聚焦/g, '盯住'],
+      [/打造/g, '搞'],
+      [/优化/g, '改好'],
+      [/提升/g, '拉高'],
+      [/增强/g, '加码'],
+      [/完善/g, '补全'],
+      [/推动/g, '推一把'],
+      [/发展/g, '往前走'],
+      [/创新/g, '玩新花样'],
+      [/突破/g, '打破'],
+      [/引领/g, '带路'],
+      [/核心/g, '最关键的'],
+      [/关键/g, '要命的'],
+      [/重要/g, '顶要紧的'],
+      [/基础/g, '底子'],
+      [/框架/g, '架子'],
+      [/模式/g, '套路'],
+      [/体系/g, '一整套'],
+      [/构建/g, '搭'],
+      [/建立/g, '立起来'],
+      [/实现/g, '搞成'],
+      [/达到/g, '够着'],
+      [/通过/g, '靠着'],
+      [/利用/g, '用上'],
+      [/依托/g, '靠着'],
+      [/基于/g, '打底是'],
+      [/有效/g, '管用'],
+      [/显著/g, '明显'],
+      [/持续/g, '一直'],
+      [/进一步/g, '再'],
+      [/不断/g, '不停地'],
+      [/高度重视/g, '特别看重'],
+      [/广泛关注/g, '大家都在看'],
+      [/具有重要意义/g, '挺重要的'],
+      [/发挥重要作用/g, '帮了大忙'],
+      [/产生深远影响/g, '影响挺大'],
     ];
     HEAVY_SWAPS.forEach(([re, rep]) => { out = out.replace(re, rep); });
+
+    // 第1.5轮:结构性AI特征替换(引用 voidborne-d/humanize-chinese 16类检测规则)
+    // 🔴高危: 三段式套路 / 机械连接词 / 空洞宏大词
+    // 🟠中危: AI高频词 / 填充废话 / 模板句式 / 平衡论述套话
+    const STRUCT_REPLACE = [
+      // ===== 🔴 三段式套路(首先/其次/最后)=====
+      [/\b首先,?然后,?最后\b/g, '后来'],
+      [/\b首先\b/g, '头一条'],
+      [/\b其次\b/g, '再一个'],
+      [/\b再次\b/g, '还有'],
+      [/\b最后\b/g, '到末了'],
+      [/\b第一,?第二,?第三\b/g, '头里说,后来,再往后'],
+      // ===== 🔴 机械连接词(朱雀判 AI 最强特征)=====
+      [/\b值得注意的是\b/g, ''],
+      [/\b需要指出的是\b/g, ''],
+      [/\b综上所述\b/g, '说到底'],
+      [/\b不难发现\b/g, '看得出来'],
+      [/\b总而言之\b/g, '反正'],
+      [/\b与此同时\b/g, '恰在这当口'],
+      [/\b由此可见\b/g, '看得出'],
+      [/\b不仅如此\b/g, '还有'],
+      [/\b换句话说\b/g, '说白了'],
+      [/\b更重要的是\b/g, '更要命的是'],
+      [/\b不可否认\b/g, ''],
+      [/\b显而易见\b/g, '明摆着'],
+      [/\b不言而喻\b/g, '明摆着'],
+      [/\b归根结底\b/g, '说穿了'],
+      [/\b毋庸置疑\b/g, ''],
+      [/\b无可否认\b/g, ''],
+      [/\b毋庸讳言\b/g, ''],
+      // ===== 🔴 空洞宏大词(政经/企管话术)=====
+      [/数字化转型/g, '换玩法'],
+      [/协同增效/g, '搭把手'],
+      [/降本增效/g, '省钱省事'],
+      [/深度融合/g, '搅到一块'],
+      [/全方位/g, '哪都'],
+      [/多维度/g, '好几方面'],
+      [/系统性/g, '整套'],
+      [/高质量发展/g, '往好了搞'],
+      [/新质生产力/g, '新玩法'],
+      [/赋能/g, '帮衬'],
+      [/闭环/g, '套圈'],
+      [/底层逻辑/g, '根子上的理'],
+      [/顶层设计/g, '上面怎么想的'],
+      [/抓手/g, '门道'],
+      [/触达/g, '找着'],
+      [/沉淀/g, '攒下来'],
+      [/复盘/g, '回头捋'],
+      [/迭代/g, '改一版'],
+      [/破圈/g, '出圈'],
+      [/颠覆/g, '掀翻'],
+      [/方法论/g, '套路'],
+      [/认知/g, '想法'],
+      [/心智/g, '脑子'],
+      [/对齐/g, '对一下'],
+      [/拉通/g, '打通'],
+      [/打通/g, '捋顺'],
+      [/卡点/g, '卡壳的地方'],
+      [/堵点/g, '堵的地方'],
+      [/亮点/g, '出彩的地方'],
+      [/发力点/g, '使劲的地方'],
+      [/着力点/g, '下手的地方'],
+      // ===== 🟠 AI高频词(商务/企管)=====
+      [/助力/g, '帮上忙'],
+      [/彰显/g, '显出'],
+      [/凸显/g, '冒出来'],
+      [/凸显出/g, '显出来'],
+      [/呈现/g, '摆出来'],
+      [/勾勒/g, '画出来'],
+      [/擘画/g, '画'],
+      [/擘划/g, '画'],
+      [/勾勒出/g, '画出'],
+      [/谱写/g, '写'],
+      [/谱写新/g, '写出新'],
+      [/谱写时代/g, '跟上时代'],
+      [/凝聚/g, '攒'],
+      [/汇聚/g, '凑一块'],
+      [/迸发/g, '冒出来'],
+      [/激荡/g, '翻腾'],
+      [/迸发出/g, '冒出'],
+      [/焕发/g, '冒出来'],
+      [/焕发出/g, '冒出'],
+      [/激发/g, '勾起来'],
+      [/激发起/g, '勾起来'],
+      [/绘就/g, '画出'],
+      [/擘画/g, '画'],
+      [/扎实推进/g, '稳着推'],
+      [/稳步推进/g, '稳着推'],
+      [/有序推进/g, '排着队推'],
+      [/高质量/g, '不赖'],
+      [/高效率/g, '麻利'],
+      [/高水准/g, '有两下子'],
+      [/高水平/g, '有两下子'],
+      [/稳步/g, '稳着'],
+      [/扎实/g, '实在'],
+      [/充分彰显/g, '看得出'],
+      [/充分体现/g, '看得出'],
+      [/充分展现/g, '看得出'],
+      [/深刻阐释/g, '说明白'],
+      [/深刻阐明/g, '说明白'],
+      [/深入阐释/g, '说清楚'],
+      [/深入阐明/g, '说清楚'],
+      [/深度阐释/g, '说清楚'],
+      [/深度解读/g, '说清楚'],
+      [/深刻揭示/g, '露馅'],
+      [/深刻揭示出/g, '露馅'],
+      [/深度揭示/g, '露馅'],
+      [/深度揭示出/g, '露馅'],
+      [/极大/g, '大'],
+      [/极大提升/g, '拉高'],
+      [/极大丰富/g, '填满'],
+      [/极大促进/g, '推一把'],
+      [/极大增强/g, '加码'],
+      [/充分发挥/g, '用足'],
+      [/切实/g, '实在'],
+      [/切实保障/g, '保住'],
+      [/切实推进/g, '推'],
+      [/扎实做好/g, '做好'],
+      [/深入实施/g, '开干'],
+      [/深入推进/g, '推进'],
+      [/深入贯彻/g, '照办'],
+      [/深入落实/g, '落实'],
+      [/深化改革/g, '改'],
+      [/深化/g, '往下'],
+      [/建立健全/g, '立起来'],
+      [/健全完善/g, '补全'],
+      [/落地见效/g, '看出效果'],
+      [/落地/g, '落实'],
+      [/压实/g, '压住'],
+      [/压实责任/g, '担起来'],
+      [/压紧/g, '压住'],
+      [/压紧压实/g, '压住'],
+      [/一以贯之/g, '一直这么干'],
+      [/持之以恒/g, '不停'],
+      [/久久为功/g, '慢慢磨'],
+      [/驰而不息/g, '不停'],
+      [/绵绵用力/g, '磨'],
+      // ===== 🟠 填充废话(朱雀判 AI 的高频元凶)=====
+      [/值得一提的是/g, ''],
+      [/众所周知/g, '谁都知道'],
+      [/毫无疑问/g, '没跑'],
+      [/具体来说/g, '说白了'],
+      [/简而言之/g, '一句话'],
+      [/一般来说/g, '通常'],
+      [/在一定程度上/g, '多少'],
+      [/从某种程度上说/g, '多少算'],
+      [/从某种角度来说/g, '换个角度看'],
+      [/某种意义/g, '某种意义上'],
+      // ===== 🟠 模板句式(AI开篇老套路)=====
+      [/在当今[^,。！]{1,8}时代/g, (m) => m.replace('在当今', '眼下').replace('时代', '当口')],
+      [/在[^,。！]{1,6}的背景下/g, (m) => m.replace('的背景下', '这当口')],
+      [/在[^,。！]{1,6}背景下/g, (m) => m.replace('背景下', '这当口')],
+      [/随着[^,。！]{1,12}的不断发展/g, (m) => m.replace(/随着/g, '打从').replace('的不断发展', '就没断过')],
+      [/随着[^,。！]{1,12}的不断/g, (m) => m.replace('随着', '打从').replace('的不断', '就没')],
+      [/随着[^,。！]{1,12}的发展/g, (m) => m.replace('随着', '打从').replace('的发展', '往前走着')],
+      [/作为[^,。！]{1,12}的重要组成部分/g, (m) => m.replace('作为', '算').replace('的重要组成部分', '里头一分子')],
+      [/作为[^,。！]{1,8}的重要/g, (m) => m.replace('作为', '算').replace('的重要', '里头')],
+      [/这不仅[^,。]{1,15}更是[^,。]{1,15}/g, (m) => m.replace('这不仅', '这不光').replace('更是', '还')],
+      [/这不仅[^,。]{1,15},更[^,。]{1,15}/g, (m) => m.replace('这不仅', '这不光').replace('更', '还')],
+      // ===== 🟠 平衡论述套话(AI辩证法套路)=====
+      [/虽然[^,。]{1,15},但是[^,。]{1,15}同时[^,。]{1,15}/g, (m) => m.replace('虽然', '虽说').replace('但是', '可').replace('同时', '又')],
+      [/既有[^,。]{1,12}也有[^,。]{1,12}更有[^,。]{1,12}/g, (m) => m.replace('既有', '有').replace('也有', '还有').replace('更有', '更要')],
+      [/一方面[^,。]{1,15},另一方面[^,。]{1,15}/g, (m) => m.replace('一方面', '一头').replace('另一方面', '另一头')],
+      [/与此相对[^,。]{0,10}/g, (m) => m.replace('与此相对', '反过来')],
+      // ===== 🟡 列举成瘾(①②③ → 1.2.3.)=====
+      [/[①②③④⑤⑥⑦⑧⑨⑩]/g, (m) => (m.charCodeAt(0) - 0x2460 + 1) + '.'],
+      // ===== 🟡 修辞堆砌 =====
+      [/如同一幅/g, '就像'],
+      [/宛如一幅/g, '像一幅'],
+      [/仿佛一幅/g, '像一幅'],
+      [/犹如一幅/g, '像一幅'],
+      [/宛如/g, '像'],
+      [/仿佛/g, '像是'],
+      [/犹如/g, '像'],
+      [/恰似/g, '像是'],
+      [/好比是/g, '像是'],
+      [/就好比/g, '像'],
+      // ===== 🟡 政经话术特殊处理(网络小说场景不需要)=====
+      [/迈向[^,。]{1,8}的步伐/g, (m) => m.replace('迈向', '走向').replace('的步伐', '')],
+      [/踏上[^,。]{1,8}的征程/g, (m) => m.replace('踏上', '走上').replace('的征程', '')],
+      [/谱写[^,。]{1,12}新篇章/g, (m) => m.replace('谱写', '写出').replace('新篇章', '新花样')],
+      [/擘画[^,。]{1,12}新蓝图/g, (m) => m.replace('擘画', '画').replace('新蓝图', '蓝图')],
+      // ===== 🟡 文学/散文腔调(被朱雀判 AI 的高频元凶)=====
+      [/内心深处/g, '心里头'],
+      [/心间/g, '心里'],
+      [/心湖/g, '心里'],
+      [/心海/g, '心里'],
+      [/心扉/g, '心门'],
+      [/一言难尽/g, '说不清'],
+      [/不为人知/g, '没人知道'],
+      [/鲜为人知/g, '没多少人知道'],
+      [/涌上心头/g, '冒上来'],
+      [/涌上/g, '冒出来'],
+      [/悄然而至/g, '不声不响来了'],
+      [/悄无声息/g, '不声不响'],
+      [/悄然无声/g, '不声不响'],
+      [/油然而生/g, '冒出来'],
+      [/呼之欲出/g, '眼看就要'],
+      [/应运而生/g, '赶上这当口冒出来'],
+      [/脱颖而出/g, '冒尖'],
+      [/大放异彩/g, '出彩'],
+      [/熠熠生辉/g, '亮堂堂'],
+      [/璀璨夺目/g, '扎眼'],
+      [/光彩夺目/g, '扎眼'],
+      [/如沐春风/g, '舒坦'],
+      [/心旷神怡/g, '舒坦'],
+      [/意气风发/g, '得劲'],
+      [/斗志昂扬/g, '干劲足'],
+      [/踌躇满志/g, '心里有底'],
+      [/豪情万丈/g, '来劲'],
+      [/百折不挠/g, '不松劲'],
+      [/勇往直前/g, '往前冲'],
+      [/一往无前/g, '往前冲'],
+      [/一马当先/g, '冲在前头'],
+      [/一骑绝尘/g, '甩开'],
+      [/名列前茅/g, '排前头'],
+      [/出类拔萃/g, '冒尖'],
+      [/出人头地/g, '冒尖'],
+      [/硕果累累/g, '收获不少'],
+      [/成绩斐然/g, '不赖'],
+      [/成效显著/g, '见效'],
+      [/突飞猛进/g, '蹿得贼快'],
+      [/蒸蒸日上/g, '往上走'],
+      [/欣欣向荣/g, '越来越顺'],
+      [/日新月异/g, '一天一变样'],
+      [/焕然一新/g, '大变样'],
+      [/焕然/g, '变了样'],
+      [/面目一新/g, '大变样'],
+      [/整装待发/g, '收拾好了'],
+      [/蓄势待发/g, '憋着劲'],
+      [/势如破竹/g, '冲得贼猛'],
+      [/势不可挡/g, '挡不住'],
+      [/如火如荼/g, '热乎着'],
+      [/方兴未艾/g, '刚开始热乎'],
+      [/如火如荼/g, '烧得正旺'],
+    ];
+    STRUCT_REPLACE.forEach(([re, rep]) => { out = out.replace(re, rep); });
 
     // 第2轮:句式打散
     out = scrambleSentenceStarts(out);
@@ -2498,6 +2925,18 @@
 
     // 第5轮:人味注入(思维跳跃+自相矛盾+具体细节)
     out = humanChaos(out);
+
+    // 第5.5轮:破折号密度限制(voidborne-d 低危:每400字最多1个)
+    const dashMatches = out.match(/——/g) || [];
+    const dashPer400 = dashMatches.length * 400 / Math.max(1, out.length);
+    if (dashPer400 > 1 && dashMatches.length > 2) {
+      // 保留前2个,后面的全替换为逗号
+      let kept = 0;
+      out = out.replace(/——/g, (m) => {
+        kept++;
+        return kept <= 2 ? m : '，';
+      });
+    }
 
     // 第6轮:清理
     out = postProcessText(out);
@@ -3842,6 +4281,277 @@
   function hideSearch() {
     const modal = document.getElementById('search-modal-bg');
     if (modal) modal.classList.remove('open');
+  }
+
+  // ===== 角色/设定管理 =====
+  const LORE_TAB = { characters: '人物', factions: '势力', locations: '地点' };
+  const LORE_ICON = { characters: '👤', factions: '🏛️', locations: '📍' };
+  let loreEditing = null; // { type, id|null }
+
+  function getLore() {
+    const w = work();
+    if (!w.lore) w.lore = { characters: [], factions: [], locations: [], aiEnabled: true };
+    if (w.lore.aiEnabled === undefined) w.lore.aiEnabled = true;
+    return w.lore;
+  }
+
+  function addLoreItem(type, data) {
+    const lore = getLore();
+    const item = { id: uid('lore_'), createdAt: new Date().toISOString(), ...data };
+    lore[type].push(item);
+    scheduleSave();
+    renderLoreList();
+    updateLoreCounts();
+  }
+
+  function updateLoreItem(type, id, data) {
+    const lore = getLore();
+    const idx = lore[type].findIndex(x => x.id === id);
+    if (idx >= 0) {
+      lore[type][idx] = { ...lore[type][idx], ...data };
+      scheduleSave();
+      renderLoreList();
+      updateLoreCounts();
+    }
+  }
+
+  function deleteLoreItem(type, id) {
+    const lore = getLore();
+    lore[type] = lore[type].filter(x => x.id !== id);
+    scheduleSave();
+    renderLoreList();
+    updateLoreCounts();
+  }
+
+  function updateLoreCounts() {
+    const lore = getLore();
+    Object.keys(LORE_TAB).forEach(t => {
+      const el = document.getElementById('lore-count-' + t);
+      if (el) {
+        el.textContent = lore[t].length;
+        el.classList.toggle('active', currentLoreTab === t);
+      }
+    });
+    const total = lore.characters.length + lore.factions.length + lore.locations.length;
+    const totalEl = document.getElementById('lore-total');
+    if (totalEl) totalEl.textContent = total;
+  }
+
+  let currentLoreTab = 'characters';
+  function renderLoreList() {
+    const lore = getLore();
+    const search = (document.getElementById('lore-search')?.value || '').trim().toLowerCase();
+    const list = document.getElementById('lore-list');
+    if (!list) return;
+    let items = lore[currentLoreTab] || [];
+    if (search) {
+      items = items.filter(it => {
+        const hay = (it.name + ' ' + (it.role || '') + ' ' + (it.tags || []).join(' ') + ' ' + (it.desc || '')).toLowerCase();
+        return hay.indexOf(search) >= 0;
+      });
+    }
+    if (items.length === 0) {
+      const empty = search
+        ? `没有匹配 "${search}" 的${LORE_TAB[currentLoreTab]}`
+        : `还没有任何${LORE_TAB[currentLoreTab]}。点击右上角"＋ 新增"开始建立设定集。`;
+      list.innerHTML = `<div class="lore-empty">${empty}</div>`;
+      return;
+    }
+    list.innerHTML = items.map(it => {
+      const color = it.color || '#6ea8ff';
+      const initial = (it.name || '?').charAt(0);
+      const tags = (it.tags || []).slice(0, 4).map(t => `<span class="lore-tag">${escapeHtml(t)}</span>`).join('');
+      const role = it.role ? `<span class="lore-role">${escapeHtml(it.role)}</span>` : '';
+      return `
+        <div class="lore-card" data-id="${it.id}">
+          <div class="lore-card-head">
+            <div class="lore-avatar" style="background:${color}">${escapeHtml(initial)}</div>
+            <div class="lore-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</div>
+            ${role}
+          </div>
+          ${tags ? `<div class="lore-tags">${tags}</div>` : ''}
+          <div class="lore-desc">${escapeHtml(it.desc || '(无描述)')}</div>
+          <div class="lore-card-actions">
+            <button data-act="edit" title="编辑">✎</button>
+            <button data-act="del" class="danger" title="删除">🗑</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    // 绑定卡片事件
+    list.querySelectorAll('.lore-card').forEach(card => {
+      const id = card.dataset.id;
+      card.addEventListener('click', e => {
+        const act = e.target.dataset?.act;
+        if (act === 'del') {
+          e.stopPropagation();
+          if (confirm(`确定删除"${getLore()[currentLoreTab].find(x => x.id === id)?.name}"?`)) {
+            deleteLoreItem(currentLoreTab, id);
+          }
+        } else if (act === 'edit') {
+          e.stopPropagation();
+          openLoreEdit(currentLoreTab, id);
+        } else {
+          openLoreEdit(currentLoreTab, id);
+        }
+      });
+    });
+  }
+
+  function openLore(type) {
+    currentLoreTab = type;
+    const lore = getLore();
+    const aiToggle = document.getElementById('lore-ai-toggle');
+    if (aiToggle) aiToggle.checked = lore.aiEnabled;
+    // tab 切换
+    document.querySelectorAll('[data-lore-tab]').forEach(t => {
+      t.classList.toggle('active', t.dataset.loreTab === type);
+    });
+    updateLoreCounts();
+    renderLoreList();
+    document.getElementById('lore-modal-bg').classList.add('open');
+  }
+
+  function showLore() { openLore('characters'); }
+  function hideLore() { document.getElementById('lore-modal-bg').classList.remove('open'); }
+
+  // ===== 编辑弹窗 =====
+  function openLoreEdit(type, id) {
+    loreEditing = { type, id: id || null };
+    const lore = getLore();
+    const item = id ? lore[type].find(x => x.id === id) : null;
+    const title = `${id ? '编辑' : '新增'}${LORE_TAB[type]}`;
+    document.getElementById('lore-edit-title').textContent = title;
+    document.getElementById('lore-edit-name').value = item?.name || '';
+    document.getElementById('lore-edit-color').value = item?.color || '#6ea8ff';
+    document.getElementById('lore-edit-role').value = item?.role || '';
+    document.getElementById('lore-edit-tags').value = (item?.tags || []).join(', ');
+    document.getElementById('lore-edit-desc').value = item?.desc || '';
+    const roleLabel = type === 'characters' ? '角色定位' : (type === 'factions' ? '势力类型' : '地点类型');
+    document.querySelector('#lore-edit-role-row label').textContent = roleLabel;
+    document.getElementById('lore-edit-faction-row').style.display = type === 'characters' ? 'block' : 'none';
+    if (type === 'characters') {
+      const sel = document.getElementById('lore-edit-faction');
+      sel.innerHTML = '<option value="">— 无 —</option>' +
+        lore.factions.map(f => `<option value="${f.id}" ${item?.factionId === f.id ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
+    }
+    document.getElementById('lore-edit-delete').style.display = id ? 'inline-block' : 'none';
+    document.getElementById('lore-edit-modal-bg').classList.add('open');
+    setTimeout(() => document.getElementById('lore-edit-name').focus(), 50);
+  }
+
+  function closeLoreEdit() {
+    document.getElementById('lore-edit-modal-bg').classList.remove('open');
+    loreEditing = null;
+  }
+
+  function saveLoreEdit() {
+    if (!loreEditing) return;
+    const name = document.getElementById('lore-edit-name').value.trim();
+    const desc = document.getElementById('lore-edit-desc').value.trim();
+    if (!name) { toast('请填写名称', true); return; }
+    if (!desc) { toast('请填写描述', true); return; }
+    const data = {
+      name,
+      color: document.getElementById('lore-edit-color').value,
+      role: document.getElementById('lore-edit-role').value.trim(),
+      tags: document.getElementById('lore-edit-tags').value.split(/[,,]/).map(s => s.trim()).filter(Boolean),
+      desc,
+    };
+    if (loreEditing.type === 'characters') {
+      const f = document.getElementById('lore-edit-faction').value;
+      data.factionId = f || null;
+    }
+    if (loreEditing.id) {
+      updateLoreItem(loreEditing.type, loreEditing.id, data);
+    } else {
+      addLoreItem(loreEditing.type, data);
+    }
+    closeLoreEdit();
+  }
+
+  function deleteLoreEditing() {
+    if (!loreEditing || !loreEditing.id) return;
+    if (!confirm('确定删除?')) return;
+    deleteLoreItem(loreEditing.type, loreEditing.id);
+    closeLoreEdit();
+  }
+
+  // ===== 注入到 AI 提示 =====
+  function buildLoreContext() {
+    const lore = getLore();
+    if (!lore.aiEnabled) return '';
+    const parts = [];
+    if (lore.characters.length) {
+      parts.push('【人物】\n' + lore.characters.map(c => {
+        const tags = c.tags?.length ? `[${c.tags.join('/')}]` : '';
+        const role = c.role ? `(${c.role})` : '';
+        return `- ${c.name}${role}${tags}: ${c.desc}`;
+      }).join('\n'));
+    }
+    if (lore.factions.length) {
+      parts.push('【势力】\n' + lore.factions.map(f => {
+        const members = f.members || [];
+        const mNames = members.map(mid => lore.characters.find(c => c.id === mid)?.name).filter(Boolean);
+        const mStr = mNames.length ? ` (成员: ${mNames.join('、')})` : '';
+        return `- ${f.name}${f.role ? `(${f.role})` : ''}: ${f.desc}${mStr}`;
+      }).join('\n'));
+    }
+    if (lore.locations.length) {
+      parts.push('【地点】\n' + lore.locations.map(l => `- ${l.name}${l.role ? `(${l.role})` : ''}: ${l.desc}`).join('\n'));
+    }
+    if (!parts.length) return '';
+    return '【当前作品设定 — 必须严格遵守,不要随意改名/改性别/改能力】\n' + parts.join('\n\n') + '\n\n';
+  }
+
+  // ===== 导入导出 =====
+  function exportLore() {
+    const lore = getLore();
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      lore,
+    };
+    const json = JSON.stringify(data, null, 2);
+    const w = work();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${w.name}-设定集-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`已导出 ${lore.characters.length + lore.factions.length + lore.locations.length} 条设定`);
+  }
+
+  function importLore(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.lore) throw new Error('格式错误');
+        const lore = getLore();
+        // 合并而非覆盖
+        const merge = (target, src) => {
+          if (!Array.isArray(src)) return;
+          src.forEach(item => {
+            if (!target.find(x => x.name === item.name)) {
+              target.push({ ...item, id: uid('lore_'), createdAt: new Date().toISOString() });
+            }
+          });
+        };
+        merge(lore.characters, data.lore.characters || []);
+        merge(lore.factions, data.lore.factions || []);
+        merge(lore.locations, data.lore.locations || []);
+        scheduleSave();
+        renderLoreList();
+        updateLoreCounts();
+        toast('导入成功');
+      } catch (err) {
+        toast('导入失败: ' + err.message, true);
+      }
+    };
+    reader.readAsText(file);
   }
 
   // ===== 12.6 作品集 / 成品展示页 =====
