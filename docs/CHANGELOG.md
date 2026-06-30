@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-07-01 · 🐛 紧急修复: app.js IIFE 闭包, 函数全部不可访问 (P1)
+
+**症状**: 浏览器控制台调用 `detectAiFlavor()` / `deepLocalDedai()` 等全部 `ReferenceError: X is not defined`. Playwright `page.evaluate('render()')` 同样失败. 测试覆盖不可信, 用户无法手动验证降 AI 味.
+
+**根因**: app.js 第 4 行 `(() => {` 用 IIFE 包裹全部 5066 行代码, 没有任何函数暴露到 window. 之前所有"测试通过"实际只是页面没崩, 函数从未真正被调用过.
+
+**修复**: app.js 末尾添加 `window.app = { ... }` 命名空间 + `Object.assign(window, ...)` 双暴露:
+- 18 个函数: render, detectAiFlavor, deepLocalDedai, humanChaos, renderWorkCards, buildLoreContext, sentenceRestructure, paragraphRestructure, scrambleSentenceStarts, scrambleParagraphs, injectColloquial, injectFragments, randomScramble, postProcessText, splitLongSentences, work, currentLevel
+- 2 个顶层 const: WORD_REPLACE, AI_TICKS (HEAVY_SWAPS/STRUCT_REPLACE 是函数内 const, 无法暴露)
+- 双暴露: 用户控制台可用 `detectAiFlavor(...)` 或 `window.app.detectAiFlavor(...)`
+
+**验证**: Playwright `final-smoke.py` 8 项冒烟测试全部通过:
+1. 0 个 JS 错误
+2. 10 个核心函数全部可调用
+3. **B11 核心场景: 71 字典型 AI 网文样本 (含"首先映入眼帘""总而言之""毋庸置疑""踏上征程"等 16 类触发词), AI 味分 30/100 → 0/100 (100% 消除), 信号 1 → 0**
+4. 角色/设定 CRUD + buildLoreContext
+5. UI 元素 (顶栏 7 按钮, Tab 5, 输入框 18)
+6. Ctrl+Shift+L 触发设定面板
+7. render() 连续 10 次稳定
+8. 截图 final-smoke.png
+
+**回归测试**: `test-dedai-pipeline.js` 仍 4/4 PASS, 53 命中, 无退化.
+
+---
+
 ## 2026-07-01 · 🐛 紧急修复: `renderWorkSwitcher()` 未定义导致整个 app 崩溃 (P0)
 
 **症状**: 用户报告"点击没反应" — 所有按钮无效. Playwright 自动化测试捕获 `ReferenceError: renderWorkSwitcher is not defined` 在每次 `render()` 时触发.

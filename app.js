@@ -5063,4 +5063,24 @@
       }
     });
   });
+
+  // ===== 公共 API 暴露 =====
+  // P1 fix: app.js 是 IIFE, 所有函数在闭包内. 测试/调试/控制台无法访问.
+  // 同时暴露裸 window.X (用户控制台调用) 和 window.app.X (命名空间, 测试用).
+  const _pub = {
+    // 状态
+    work, currentLevel,
+    // UI 渲染
+    render, renderWorkCards, buildLoreContext,
+    // AI 检测 + 降重 (B11 关键)
+    detectAiFlavor, deepLocalDedai, humanChaos,
+    sentenceRestructure, paragraphRestructure,
+    scrambleSentenceStarts, scrambleParagraphs,
+    injectColloquial, injectFragments, randomScramble,
+    postProcessText, splitLongSentences,
+    // 数据表 (顶层 const)
+    WORD_REPLACE, AI_TICKS,
+  };
+  Object.assign(window, _pub);
+  window.app = _pub;
 })();
