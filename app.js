@@ -81,6 +81,20 @@
     return levels;
   }
 
+  // 12.2 作品设置默认值 (6 维 + tags + customFields)
+  function DEFAULT_WORK_SETTINGS() {
+    return {
+      genre: '通用',         // 类型: 玄幻/都市/科幻/历史/言情/通用
+      targetWords: 100000,   // 字数目标: 短篇 3万 / 中篇 8万 / 长篇 20万 / 超长 50万+
+      audience: '大众',       // 读者: 少年/青年/大众/女性/男性
+      style: '通俗',         // 文风: 通俗/文艺/幽默/严肃/热血
+      pov: '第三人称',       // 视角: 第一人称/第三人称/全知/多线
+      pacing: '中等',        // 节奏: 紧凑/中等/舒缓
+      tags: [],              // 自定义标签
+      customFields: {}       // 用户自定义键值对
+    };
+  }
+
   function freshState() {
     const id = uid();
     return {
@@ -92,6 +106,9 @@
           currentLevel: 1,
           levels: emptyLevels(),
           todoDone: {},
+          lore: { characters: [], factions: [], locations: [], aiEnabled: true },
+          settings: DEFAULT_WORK_SETTINGS(),
+          updatedAt: new Date().toISOString(),
         },
       },
     };
@@ -304,17 +321,21 @@
     render();
   }
 
-  function createWork(name) {
-    const id = uid();
-    state.works[id] = {
-      id, name: name || '未命名作品',
-      createdAt: new Date().toISOString(),
-      currentLevel: 1,
-      levels: emptyLevels(),
-    };
+function createWork(name) {
+      const id = uid();
+      state.works[id] = {
+        id, name: name || '未命名作品',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        currentLevel: 1,
+        levels: emptyLevels(),
+        lore: { characters: [], factions: [], locations: [], aiEnabled: true },
+        settings: DEFAULT_WORK_SETTINGS(),
+      };
     state.activeWorkId = id;
     scheduleSave();
     render();
+    return id;
   }
 
   function renameWork(id) {
@@ -454,6 +475,10 @@
               '<div class="work-card-stat">' +
                 '<span class="work-card-label">最后更新:</span> ' + new Date(w.updatedAt || w.createdAt).toLocaleDateString() +
               '</div>' +
+            '</div>' +
+            '<div class="work-card-settings">' +
+              '<span class="work-card-genre-tag">' + escapeHtml((w.settings && w.settings.genre) || '通用') + '</span>' +
+              '<span class="work-card-target">目标 ' + (((w.settings && w.settings.targetWords) || 100000) / 10000).toFixed(0) + '万字</span>' +
             '</div>' +
             '<div class="work-card-progress">' +
               '<div class="work-card-progress-bar" style="width: ' + Math.round((done / levelLen) * 100) + '%; background: hsl(' + hue + ', 70%, 50%);"></div>' +
@@ -5019,8 +5044,11 @@ if (action === 'rename') {
   const _pub = {
     // 状态
     work, currentLevel, state,
+    createWork, deleteWork, renameWork, exportWork,
     // UI 渲染
     render, renderWorkCards, buildLoreContext,
+    // 作品 CRUD (C 轨道)
+    createWork, deleteWork, renameWork, exportWork,
     // AI 检测 + 降重 (B11 关键)
     detectAiFlavor, deepLocalDedai, humanChaos,
     sentenceRestructure, paragraphRestructure,
@@ -5029,6 +5057,8 @@ if (action === 'rename') {
     postProcessText, splitLongSentences,
     // 数据表 (顶层 const)
     WORD_REPLACE, AI_TICKS,
+    // 工具函数 (C 轨道测试用)
+    DEFAULT_WORK_SETTINGS, emptyLevels, freshState, uid,
   };
   Object.assign(window, _pub);
   window.app = _pub;
