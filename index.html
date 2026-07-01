@@ -325,9 +325,114 @@
     color: var(--text);
   }
   .work-menu .menu-action:hover { background: var(--panel); }
-  .work-menu .menu-action .ico { color: var(--accent); }
+.work-menu .menu-action .ico { color: var(--accent); }
 
-  .crumb { color: var(--muted); }
+/* ===== 12.1 作品卡片网格 ===== */
+.work-card-section {
+  padding: 16px 20px 0;
+  background: var(--bg-soft, #fafafa);
+  border-bottom: 1px solid var(--border, #e5e5e5);
+}
+.work-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.work-card {
+  background: #fff;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: box-shadow .15s, border-color .15s, transform .1s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 130px;
+}
+.work-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); border-color: var(--accent, #4f7cff); transform: translateY(-1px); }
+.work-card.active { border-color: var(--accent, #4f7cff); box-shadow: 0 0 0 2px rgba(79,124,255,.18); }
+.work-card.active::before {
+  content: "✓";
+  position: absolute; top: -8px; left: 12px;
+  background: var(--accent, #4f7cff);
+  color: #fff;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+.work-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg, #1a1a1a);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.work-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted, #888);
+}
+.work-card-meta-item { display: flex; align-items: center; gap: 4px; }
+.work-card-progress {
+  background: #f0f0f0;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.work-card-progress-bar {
+  background: linear-gradient(90deg, var(--accent, #4f7cff), #6fb3ff);
+  height: 100%;
+  border-radius: 999px;
+  transition: width .3s;
+}
+.work-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.work-card:hover .work-card-actions, .work-card.active .work-card-actions { opacity: 1; }
+.work-card-action-btn {
+  background: transparent;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--fg, #333);
+  transition: background .15s;
+}
+.work-card-action-btn:hover { background: #f5f5f5; }
+.work-card-action-btn.danger:hover { background: #fee; color: #c33; border-color: #fcc; }
+.work-card-new {
+  background: transparent;
+  border: 2px dashed var(--border, #d4d4d4);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 130px;
+  color: var(--muted, #888);
+  font-size: 14px;
+  transition: all .15s;
+}
+.work-card-new:hover { border-color: var(--accent, #4f7cff); color: var(--accent, #4f7cff); background: rgba(79,124,255,.04); }
+@media (max-width: 640px) {
+  .work-card-grid { grid-template-columns: 1fr; }
+}
+
+.crumb { color: var(--muted); }
   .crumb b { color: var(--text); }
   .progress {
     flex: 1; height: 8px; background: var(--panel-2);
@@ -1265,6 +1370,8 @@
   <button class="btn ghost settings-btn" id="btn-showcase" title="作品集 / 成品展示">📚</button>
   <button class="btn ghost settings-btn" id="btn-api-settings" title="设置 DeepSeek API Key">⚙️</button>
 </header>
+
+<section id="work-card-grid" class="work-card-section" aria-label="作品卡片"></section>
 
 <main>
   <aside class="sidebar" id="sidebar">

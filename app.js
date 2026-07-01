@@ -290,93 +290,6 @@
   }
 
   // ===== 渲染 =====
-  // New work cards renderer
-  function renderWorkCards() {
-    const menu = document.getElementById('work-menu');
-    
-    // Remove existing work switcher content
-    const existingContent = menu.querySelector('.work-card-grid');
-    if (existingContent) {
-      existingContent.remove();
-    }
-    
-    // Create card container
-    const cardContainer = document.createElement('div');
-    cardContainer.className = 'work-card-grid';
-    cardContainer.id = 'work-card-grid';
-    
-    // Create header for the cards
-    const cardHeader = document.createElement('div');
-    cardHeader.className = 'work-card-header';
-    cardHeader.innerHTML = '<h3>作品库</h3><div class="work-card-actions"><button class="btn" id="btn-new-work-card">＋ 新建作品</button></div>';
-    cardContainer.appendChild(cardHeader);
-    
-    // Create cards for each work
-    Object.values(state.works)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .forEach(w => {
-        const card = document.createElement('div');
-        card.className = 'work-card' + (w.id === state.activeWorkId ? ' active' : '');
-        const words = totalWordsOf(w);
-        const done = doneCountOf(w);
-        const levelLen = LEVELS.length;
-        
-        // Generate gradient based on work ID for unique colors
-        const hue = (w.id.charCodeAt(0) % 360);
-        const bgGradient = `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${(hue + 30) % 360}, 70%, 60%))`;
-        
-        card.innerHTML =
-          '<div class="work-card-content">' +
-            '<div class="work-card-header-row">' +
-              '<div class="work-card-title">' + escapeHtml(w.name) + '</div>' +
-              (w.id === state.activeWorkId ? '<div class="work-card-selected-badge">✓</div>' : '') +
-            '</div>' +
-            '<div class="work-card-meta">' +
-              '<div class="work-card-stat">' +
-                '<span class="work-card-label">字数:</span> ' + words.toLocaleString() +
-              '</div>' +
-              '<div class="work-card-stat">' +
-                '<span class="work-card-label">进度:</span> ' + done + '/' + levelLen +
-              '</div>' +
-              '<div class="work-card-stat">' +
-                '<span class="work-card-label">最后更新:</span> ' + new Date(w.updatedAt || w.createdAt).toLocaleDateString() +
-              '</div>' +
-            '</div>' +
-            '<div class="work-card-progress">' +
-              '<div class="work-card-progress-bar" style="width: ' + Math.round((done / levelLen) * 100) + '%; background: hsl(' + hue + ', 70%, 50%);"></div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="work-card-actions">' +
-            '<button class="work-card-action-btn" data-action="rename" title="重命名">✎</button>' +
-            '<button class="work-card-action-btn" data-action="delete" title="删除">🗑</button>' +
-          '</div>';
-        
-        card.addEventListener('click', (e) => {
-          if (!e.target.classList.contains('work-card-action-btn')) {
-            switchWork(w.id);
-            closeWorkMenu();
-          }
-        });
-        
-        // Add action button event listeners
-        card.querySelectorAll('.work-card-action-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const action = btn.dataset.action;
-            if (action === 'rename') {
-              renameWork(w.id);
-            } else if (action === 'delete') {
-              deleteWork(w.id);
-            }
-          });
-        });
-        
-        cardContainer.appendChild(card);
-      });
-    
-    menu.appendChild(cardContainer);
-  }
-
   function openWorkMenu() { document.getElementById('work-menu').classList.add('open'); }
   function closeWorkMenu() { document.getElementById('work-menu').classList.remove('open'); }
   function toggleWorkMenu() {
@@ -425,6 +338,31 @@
     if (state.activeWorkId === id) state.activeWorkId = Object.keys(state.works)[0];
     scheduleSave();
     render();
+  }
+
+  // 导出作品为 JSON 文件 (C-1.5)
+  function exportWork(id) {
+    const w = state.works[id];
+    if (!w) return;
+    const payload = {
+      id: w.id,
+      name: w.name,
+      createdAt: w.createdAt,
+      updatedAt: w.updatedAt,
+      levels: w.levels,
+      lore: w.lore || {},
+      settings: w.settings || {},
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (w.name || 'work') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toastKind('已导出《' + w.name + '》', 'ok');
   }
 
   // 关卡分组定义
@@ -488,7 +426,7 @@
     
     // Create cards for each work
     Object.values(state.works)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .sort((a, b) => String(a.createdAt || 0).localeCompare(String(b.createdAt || 0)))
       .forEach(w => {
         const card = document.createElement('div');
         card.className = 'work-card' + (w.id === state.activeWorkId ? ' active' : '');
@@ -522,8 +460,9 @@
             '</div>' +
           '</div>' +
           '<div class="work-card-actions">' +
-            '<button class="work-card-action-btn" data-action="rename" title="重命名">✎</button>' +
-            '<button class="work-card-action-btn" data-action="delete" title="删除">🗑</button>' +
+'<button class="work-card-action-btn" data-action="rename" title="重命名">✎</button>' +
+          '<button class="work-card-action-btn" data-action="export" title="导出 JSON">⤓</button>' +
+          '<button class="work-card-action-btn" data-action="delete" title="删除">🗑</button>' +
           '</div>';
         
         card.addEventListener('click', (e) => {
@@ -537,22 +476,31 @@
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const action = btn.dataset.action;
-            if (action === 'rename') {
-              renameWork(w.id);
-            } else if (action === 'delete') {
-              deleteWork(w.id);
-            }
+if (action === 'rename') {
+        renameWork(w.id);
+      } else if (action === 'export') {
+        exportWork(w.id);
+      } else if (action === 'delete') {
+        deleteWork(w.id);
+      }
           });
         });
         
         cardContainer.appendChild(card);
       });
     
-    // Replace dropdown content with cards
-    menu.innerHTML = '';
-    menu.className = 'work-card-dropdown';
-    menu.appendChild(cardContainer);
-    menu.style.display = 'block'; // Show the card dropdown
+    // C-1.4: 渲染到独立 grid 容器, 不再塞 dropdown
+    const grid = document.getElementById('work-card-grid');
+    if (grid) {
+      grid.innerHTML = '';
+      grid.appendChild(cardContainer);
+    } else {
+      // Fallback: 老的 dropdown 路径 (向后兼容)
+      menu.innerHTML = '';
+      menu.className = 'work-card-dropdown';
+      menu.appendChild(cardContainer);
+      menu.style.display = 'block';
+    }
   }
 
   function renderSidebar() {
@@ -5070,7 +5018,7 @@
   // 同时暴露裸 window.X (用户控制台调用) 和 window.app.X (命名空间, 测试用).
   const _pub = {
     // 状态
-    work, currentLevel,
+    work, currentLevel, state,
     // UI 渲染
     render, renderWorkCards, buildLoreContext,
     // AI 检测 + 降重 (B11 关键)
