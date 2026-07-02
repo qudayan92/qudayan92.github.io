@@ -1592,6 +1592,74 @@
   </div>
 </div>
 
+<!-- 作品设置弹窗 -->
+<div class="modal-bg" id="work-settings-modal-bg">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <h3 id="work-settings-title">⚙ 作品设置</h3>
+      <span class="x" id="work-settings-close">✕</span>
+    </div>
+    <div class="modal-body">
+      <p style="margin:0 0 12px;color:var(--muted);font-size:13px;">
+        设置这部作品的题材/字数/读者等元数据，会显示在作品卡片上，并随导出 JSON 一起保存。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <label class="ws-field"><span>类型</span>
+          <select id="ws-genre">
+            <option value="通用">通用</option><option value="玄幻">玄幻</option><option value="都市">都市</option><option value="科幻">科幻</option><option value="历史">历史</option><option value="言情">言情</option><option value="悬疑">悬疑</option><option value="武侠">武侠</option><option value="军事">军事</option><option value="游戏">游戏</option><option value="同人">同人</option>
+          </select>
+        </label>
+        <label class="ws-field"><span>字数目标 (万)</span>
+          <input type="number" id="ws-target-words" min="1" max="500" step="1" />
+        </label>
+        <label class="ws-field"><span>读者</span>
+          <select id="ws-audience">
+            <option value="大众">大众</option><option value="少年">少年</option><option value="青年">青年</option><option value="女性">女性</option><option value="男性">男性</option><option value="儿童">儿童</option>
+          </select>
+        </label>
+        <label class="ws-field"><span>文风</span>
+          <select id="ws-style">
+            <option value="通俗">通俗</option><option value="文艺">文艺</option><option value="幽默">幽默</option><option value="严肃">严肃</option><option value="热血">热血</option><option value="治愈">治愈</option>
+          </select>
+        </label>
+        <label class="ws-field"><span>视角</span>
+          <select id="ws-pov">
+            <option value="第三人称">第三人称</option><option value="第一人称">第一人称</option><option value="全知视角">全知视角</option><option value="多线">多线</option>
+          </select>
+        </label>
+        <label class="ws-field"><span>节奏</span>
+          <select id="ws-pacing">
+            <option value="中等">中等</option><option value="紧凑">紧凑</option><option value="舒缓">舒缓</option>
+          </select>
+        </label>
+      </div>
+      <label class="ws-field" style="margin-top:12px;"><span>标签 (逗号分隔)</span>
+        <input type="text" id="ws-tags" placeholder="例如: 修真, 穿越, 轻喜剧" />
+      </label>
+      <label class="ws-field"><span>自定义字段 (键值对, 一行一组, 例如 出版: 起点中文网)</span>
+        <textarea id="ws-custom-fields" rows="3" placeholder="出版: 起点中文网&#10;签约状态: 已签约"></textarea>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="work-settings-cancel">取消</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="work-settings-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.ws-field { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); }
+.ws-field > span { font-weight:500; color:var(--text); }
+.ws-field input, .ws-field select, .ws-field textarea {
+  padding:8px 10px; background:var(--bg); border:1px solid var(--line);
+  border-radius:6px; color:var(--text); font-size:14px; outline:none; font-family:inherit;
+}
+.ws-field input:focus, .ws-field select:focus, .ws-field textarea:focus {
+  border-color:var(--accent);
+}
+</style>
+
 <!-- 全文搜索弹窗 -->
 <div class="modal-bg" id="search-modal-bg">
   <div class="modal" style="max-width:720px;max-height:85vh;">

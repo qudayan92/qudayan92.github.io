@@ -321,6 +321,60 @@
     render();
   }
 
+  // ===== 作品设置弹窗 (C-3) =====
+  let _workSettingsTargetId = null;
+  function showWorkSettings(id) {
+    const w = state.works[id];
+    if (!w) return;
+    _workSettingsTargetId = id;
+    if (!w.settings) w.settings = DEFAULT_WORK_SETTINGS();
+    const s = w.settings;
+    document.getElementById('work-settings-title').textContent = '⚙ 作品设置: ' + w.name;
+    document.getElementById('ws-genre').value = s.genre || '通用';
+    document.getElementById('ws-target-words').value = (s.targetWords || 100000) / 10000;
+    document.getElementById('ws-audience').value = s.audience || '大众';
+    document.getElementById('ws-style').value = s.style || '通俗';
+    document.getElementById('ws-pov').value = s.pov || '第三人称';
+    document.getElementById('ws-pacing').value = s.pacing || '中等';
+    document.getElementById('ws-tags').value = (s.tags || []).join(', ');
+    const cf = s.customFields || {};
+    document.getElementById('ws-custom-fields').value = Object.keys(cf).map(k => k + ': ' + cf[k]).join('\n');
+    document.getElementById('work-settings-modal-bg').classList.add('open');
+  }
+  function hideWorkSettings() {
+    document.getElementById('work-settings-modal-bg').classList.remove('open');
+    _workSettingsTargetId = null;
+  }
+  function saveWorkSettings() {
+    if (!_workSettingsTargetId) return;
+    const w = state.works[_workSettingsTargetId];
+    if (!w) return;
+    if (!w.settings) w.settings = DEFAULT_WORK_SETTINGS();
+    const s = w.settings;
+    s.genre = document.getElementById('ws-genre').value;
+    s.targetWords = Math.max(1, parseInt(document.getElementById('ws-target-words').value) || 10) * 10000;
+    s.audience = document.getElementById('ws-audience').value;
+    s.style = document.getElementById('ws-style').value;
+    s.pov = document.getElementById('ws-pov').value;
+    s.pacing = document.getElementById('ws-pacing').value;
+    s.tags = document.getElementById('ws-tags').value.split(',').map(x => x.trim()).filter(Boolean);
+    const cfText = document.getElementById('ws-custom-fields').value;
+    const cf = {};
+    cfText.split('\n').forEach(line => {
+      const idx = line.indexOf(':');
+      if (idx > 0) {
+        const k = line.slice(0, idx).trim();
+        const v = line.slice(idx + 1).trim();
+        if (k) cf[k] = v;
+      }
+    });
+    s.customFields = cf;
+    w.updatedAt = new Date().toISOString();
+    scheduleSave();
+    render();
+    hideWorkSettings();
+  }
+
 function createWork(name) {
       const id = uid();
       state.works[id] = {
@@ -486,6 +540,7 @@ function createWork(name) {
           '</div>' +
           '<div class="work-card-actions">' +
 '<button class="work-card-action-btn" data-action="rename" title="重命名">✎</button>' +
+          '<button class="work-card-action-btn" data-action="settings" title="作品设置">⚙</button>' +
           '<button class="work-card-action-btn" data-action="export" title="导出 JSON">⤓</button>' +
           '<button class="work-card-action-btn" data-action="delete" title="删除">🗑</button>' +
           '</div>';
@@ -503,6 +558,8 @@ function createWork(name) {
             const action = btn.dataset.action;
 if (action === 'rename') {
         renameWork(w.id);
+      } else if (action === 'settings') {
+        showWorkSettings(w.id);
       } else if (action === 'export') {
         exportWork(w.id);
       } else if (action === 'delete') {
@@ -3715,6 +3772,14 @@ if (action === 'rename') {
     document.getElementById('api-settings-modal-bg').addEventListener('click', e => {
       if (e.target.id === 'api-settings-modal-bg') hideApiSettings();
     });
+
+    // 作品设置弹窗 (C-3)
+    document.getElementById('work-settings-close').addEventListener('click', hideWorkSettings);
+    document.getElementById('work-settings-cancel').addEventListener('click', hideWorkSettings);
+    document.getElementById('work-settings-save').addEventListener('click', saveWorkSettings);
+    document.getElementById('work-settings-modal-bg').addEventListener('click', e => {
+      if (e.target.id === 'work-settings-modal-bg') hideWorkSettings();
+    });
     document.getElementById('api-key-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') saveApiSettings();
     });
@@ -5049,6 +5114,7 @@ if (action === 'rename') {
     render, renderWorkCards, buildLoreContext,
     // 作品 CRUD (C 轨道)
     createWork, deleteWork, renameWork, exportWork,
+    showWorkSettings, hideWorkSettings, saveWorkSettings,
     // AI 检测 + 降重 (B11 关键)
     detectAiFlavor, deepLocalDedai, humanChaos,
     sentenceRestructure, paragraphRestructure,
