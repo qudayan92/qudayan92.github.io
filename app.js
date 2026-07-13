@@ -491,7 +491,7 @@ function createWork(name) {
     // Create card container
     const cardContainer = document.createElement('div');
     cardContainer.className = 'work-card-grid';
-    cardContainer.id = 'work-card-grid';
+    // 注意: 不设置 id, 避免和 <section id="work-card-grid"> 冲突 (Playwright strict mode 报错)
     
     // Create header for the cards
     const cardHeader = document.createElement('div');
@@ -571,17 +571,42 @@ if (action === 'rename') {
         cardContainer.appendChild(card);
       });
     
-    // C-1.4: 渲染到独立 grid 容器, 不再塞 dropdown
+    // C-1.4 + C-fix (用户选 C): 双渲染 - 独立 grid + 顶栏 dropdown 都填充
+    // 独立 grid 仅在无 active work 时显示 (welcome 状态)
+    // 顶栏 dropdown (#work-menu) 永远填充, 让用户能快速切换
     const grid = document.getElementById('work-card-grid');
     if (grid) {
       grid.innerHTML = '';
-      grid.appendChild(cardContainer);
-    } else {
-      // Fallback: 老的 dropdown 路径 (向后兼容)
+      grid.appendChild(cardContainer.cloneNode(true));
+      // 用户选 C: 有 active work 时隐藏独立 grid
+      grid.style.display = state.activeWorkId ? 'none' : 'block';
+    }
+    if (menu) {
       menu.innerHTML = '';
-      menu.className = 'work-card-dropdown';
-      menu.appendChild(cardContainer);
-      menu.style.display = 'block';
+      // 复制一份给 dropdown (cloneNode 已深拷贝, 事件需重新绑)
+      const dropdownCards = cardContainer.cloneNode(true);
+      menu.appendChild(dropdownCards);
+      // 给 dropdown 内的按钮重新绑事件
+      menu.querySelectorAll('.work-card-action-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const action = btn.dataset.action;
+          const cardEl = btn.closest('.work-card');
+          const workId = cardEl ? cardEl.dataset.workId : null;
+          if (!workId) return;
+          if (action === 'rename') renameWork(workId);
+          else if (action === 'export') exportWork(workId);
+          else if (action === 'settings') showWorkSettings(workId);
+          else if (action === 'delete') deleteWork(workId);
+        });
+      });
+      menu.querySelectorAll('.work-card').forEach(card => {
+        card.addEventListener('click', e => {
+          if (e.target.classList.contains('work-card-action-btn')) return;
+          switchWork(card.dataset.workId);
+          closeWorkMenu();
+        });
+      });
     }
   }
 
@@ -852,6 +877,9 @@ if (action === 'rename') {
 
   function render() {
     renderWorkCards();  // P0 fix: 之前调用 renderWorkSwitcher (未定义), 导致 render() 崩溃, 整个 app 失效
+    // C-1.5 fix: 仅在无 active work 时显示独立卡片网格 (欢迎页), 有 active work 时隐藏 (顶栏 dropdown 接管)
+    const grid = document.getElementById('work-card-grid');
+    if (grid) grid.style.display = state.activeWorkId ? 'none' : 'block';
     renderSidebar();
     renderHeader();
     renderGoal();
