@@ -365,6 +365,32 @@
   font-size: 11px;
   display: flex; align-items: center; justify-content: center;
 }
+.work-card-cover {
+  height: 60px;
+  border-radius: 8px;
+  margin: -14px -16px 8px -16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.95);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  position: relative;
+  overflow: hidden;
+}
+.work-card-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%, rgba(0,0,0,0.1) 100%);
+  pointer-events: none;
+}
+.work-card-cover-pattern {
+  position: relative;
+  z-index: 1;
+}
 .work-card-title {
   font-size: 15px;
   font-weight: 600;

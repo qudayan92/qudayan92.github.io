@@ -504,6 +504,7 @@ function createWork(name) {
       .sort((a, b) => String(a.createdAt || 0).localeCompare(String(b.createdAt || 0)))
       .forEach(w => {
         const card = document.createElement('div');
+        card.dataset.workId = w.id;
         card.className = 'work-card' + (w.id === state.activeWorkId ? ' active' : '');
         const words = totalWordsOf(w);
         const done = doneCountOf(w);
@@ -512,8 +513,11 @@ function createWork(name) {
         // Generate gradient based on work ID for unique colors
         const hue = (w.id.charCodeAt(0) % 360);
         const bgGradient = `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${(hue + 30) % 360}, 70%, 60%))`;
-        
+
         card.innerHTML =
+          '<div class="work-card-cover" style="background:' + bgGradient + ';">' +
+            '<div class="work-card-cover-pattern">' + escapeHtml((w.settings && w.settings.genre) || '通用') + '</div>' +
+          '</div>' +
           '<div class="work-card-content">' +
             '<div class="work-card-header-row">' +
               '<div class="work-card-title">' + escapeHtml(w.name) + '</div>' +
